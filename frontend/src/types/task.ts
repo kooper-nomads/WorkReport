@@ -1,4 +1,4 @@
-export type TaskStatus = 'new' | 'in_progress' | 'review' | 'done' | 'overdue'
+export type TaskStatus = 'active' | 'done'
 
 export interface TaskUser {
   id: string
@@ -12,11 +12,9 @@ export interface TaskTag {
   color?: string
 }
 
-export type TaskEventAction = 'post' | 'update' | 'close'
-
 export interface TaskEvent {
   id: string
-  action: TaskEventAction
+  action: string
   date: string
   userFrom: string
   summary: string

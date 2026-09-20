@@ -9,7 +9,7 @@ export const mockTasks: Task[] = [
   {
     id: 101,
     name: 'Створити макет сторінки логіну',
-    status: 'new',
+    status: 'active',
     author: oleh,
     assignee: kateryna,
     tags: [{ id: 't1', label: 'Дизайн', color: '#e8d9ff' }],
@@ -26,7 +26,7 @@ export const mockTasks: Task[] = [
   {
     id: 102,
     name: 'Налаштувати CI для фронтенду',
-    status: 'new',
+    status: 'active',
     author: andrii,
     assignee: andrii,
     tags: [{ id: 't2', label: 'DevOps' }],
@@ -43,7 +43,7 @@ export const mockTasks: Task[] = [
   {
     id: 103,
     name: 'Інтегрувати авторизацію через Google',
-    status: 'in_progress',
+    status: 'active',
     author: kateryna,
     assignee: sofia,
     tags: [
@@ -77,7 +77,7 @@ export const mockTasks: Task[] = [
   {
     id: 104,
     name: 'Написати компонент картки таски',
-    status: 'in_progress',
+    status: 'active',
     author: sofia,
     assignee: oleh,
     tags: [{ id: 't5', label: 'Frontend', color: '#d7ecff' }],
@@ -101,7 +101,7 @@ export const mockTasks: Task[] = [
   {
     id: 105,
     name: 'Ревʼю API для проєктів',
-    status: 'review',
+    status: 'active',
     author: andrii,
     assignee: kateryna,
     tags: [{ id: 't6', label: 'Backend', color: '#d7ecff' }],
@@ -149,7 +149,7 @@ export const mockTasks: Task[] = [
   {
     id: 107,
     name: 'Виправити баг з відображенням тегів',
-    status: 'overdue',
+    status: 'active',
     author: sofia,
     assignee: sofia,
     tags: [

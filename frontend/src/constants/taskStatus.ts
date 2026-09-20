@@ -1,9 +1,6 @@
 import type { TaskStatus } from '../types/task'
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
-  new: 'Нова',
-  in_progress: 'В роботі',
-  review: 'На перевірці',
+  active: 'В роботі',
   done: 'Завершена',
-  overdue: 'Прострочена',
 }
