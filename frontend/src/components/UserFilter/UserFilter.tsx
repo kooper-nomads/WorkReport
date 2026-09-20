@@ -7,9 +7,10 @@ interface UserFilterProps {
   users: TaskUser[]
   value: string
   onChange: (userId: string) => void
+  disabled?: boolean
 }
 
-export function UserFilter({ users, value, onChange }: UserFilterProps) {
+export function UserFilter({ users, value, onChange, disabled }: UserFilterProps) {
   return (
     <label className="user-filter">
       <span className="user-filter__label">Користувач</span>
@@ -17,6 +18,7 @@ export function UserFilter({ users, value, onChange }: UserFilterProps) {
         className="user-filter__select"
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
       >
         <option value={ALL_USERS}>Усі користувачі</option>
         {users.map((user) => (

@@ -29,6 +29,12 @@
   gap: 16px;
 }
 
+.task-report__error {
+  margin: 0;
+  font-size: 13px;
+  color: #d33;
+}
+
 .task-report__summary {
   margin: 0;
   font-size: 13px;

@@ -3,6 +3,7 @@ import type { Period } from '../PeriodFilter/PeriodFilter'
 import { PeriodFilter } from '../PeriodFilter/PeriodFilter'
 import { ALL_USERS, UserFilter } from '../UserFilter/UserFilter'
 import { TaskCard } from '../TaskCard/TaskCard'
+import { useUsers } from '../../api/useUsers'
 import type { Task, TaskUser } from '../../types/task'
 import './TaskReport.css'
 
@@ -16,20 +17,18 @@ function isEventInPeriod(eventDate: string, period: Period) {
   return day >= period.from && day <= period.to
 }
 
-function collectUsers(tasks: Task[]) {
-  const users = new Map<string, TaskUser>()
-  for (const task of tasks) {
-    users.set(task.author.id, task.author)
-    users.set(task.assignee.id, task.assignee)
-  }
-  return Array.from(users.values()).sort((a, b) => a.name.localeCompare(b.name))
-}
-
 export function TaskReport({ tasks, defaultPeriod }: TaskReportProps) {
   const [period, setPeriod] = useState<Period>(defaultPeriod)
   const [userId, setUserId] = useState<string>(ALL_USERS)
 
-  const users = useMemo(() => collectUsers(tasks), [tasks])
+  const { data: users, isLoading: isUsersLoading, isError: isUsersError } = useUsers()
+  const sortedUsers = useMemo(
+    () =>
+      (users ?? [])
+        .map((user): TaskUser => ({ id: String(user.id), name: user.name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [users],
+  )
 
   const reportTasks = useMemo(
     () =>
@@ -51,9 +50,18 @@ export function TaskReport({ tasks, defaultPeriod }: TaskReportProps) {
         <h1 className="task-report__title">Звіт по задачах за період</h1>
         <div className="task-report__filters">
           <PeriodFilter value={period} onChange={setPeriod} />
-          <UserFilter users={users} value={userId} onChange={setUserId} />
+          <UserFilter
+            users={sortedUsers}
+            value={userId}
+            onChange={setUserId}
+            disabled={isUsersLoading}
+          />
         </div>
       </header>
+
+      {isUsersError && (
+        <p className="task-report__error">Не вдалося завантажити список користувачів</p>
+      )}
 
       <p className="task-report__summary">
         Задач зі змінами за період: {reportTasks.length}
