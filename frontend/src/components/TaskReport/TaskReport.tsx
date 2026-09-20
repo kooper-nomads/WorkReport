@@ -4,21 +4,20 @@ import { PeriodFilter } from '../PeriodFilter/PeriodFilter'
 import { ALL_USERS, UserFilter } from '../UserFilter/UserFilter'
 import { TaskCard } from '../TaskCard/TaskCard'
 import { useUsers } from '../../api/useUsers'
-import type { Task, TaskUser } from '../../types/task'
+import { useReport } from '../../api/useReport'
+import { daysAgo, daysBetween, today } from '../../utils/date'
+import type { TaskUser } from '../../types/task'
 import './TaskReport.css'
 
-interface TaskReportProps {
-  tasks: Task[]
-  defaultPeriod: Period
-}
+const MAX_REPORT_DAYS = 30
 
 function isEventInPeriod(eventDate: string, period: Period) {
   const day = eventDate.slice(0, 10)
   return day >= period.from && day <= period.to
 }
 
-export function TaskReport({ tasks, defaultPeriod }: TaskReportProps) {
-  const [period, setPeriod] = useState<Period>(defaultPeriod)
+export function TaskReport() {
+  const [period, setPeriod] = useState<Period>({ from: daysAgo(7), to: today() })
   const [userId, setUserId] = useState<string>(ALL_USERS)
 
   const { data: users, isLoading: isUsersLoading, isError: isUsersError } = useUsers()
@@ -30,42 +29,72 @@ export function TaskReport({ tasks, defaultPeriod }: TaskReportProps) {
     [users],
   )
 
+  const daysFromToday = daysBetween(period.from, today())
+  const isRangeTooLong = daysFromToday > MAX_REPORT_DAYS
+  const isUserSelected = userId !== ALL_USERS
+
+  const {
+    data: reportData,
+    refetch,
+    isFetching: isReportLoading,
+    isError: isReportError,
+    error: reportError,
+    isSuccess: isReportLoaded,
+  } = useReport(Number(userId), Math.min(Math.max(daysFromToday, 1), MAX_REPORT_DAYS))
+
   const reportTasks = useMemo(
     () =>
-      tasks
-        .filter(
-          (task) => userId === ALL_USERS || task.author.id === userId || task.assignee.id === userId,
-        )
+      (reportData ?? [])
         .map((task) => ({
           ...task,
           events: task.events.filter((event) => isEventInPeriod(event.date, period)),
         }))
         .filter((task) => task.events.length > 0),
-    [tasks, period, userId],
+    [reportData, period],
   )
+
+  const canGenerate = isUserSelected && !isRangeTooLong && !isReportLoading
 
   return (
     <div className="task-report">
       <header className="task-report__header">
         <h1 className="task-report__title">Звіт по задачах за період</h1>
         <div className="task-report__filters">
-          <PeriodFilter value={period} onChange={setPeriod} />
-          <UserFilter
-            users={sortedUsers}
-            value={userId}
-            onChange={setUserId}
-            disabled={isUsersLoading}
+          <PeriodFilter
+            value={period}
+            onChange={setPeriod}
+            minFrom={daysAgo(MAX_REPORT_DAYS - 1)}
+            maxTo={today()}
           />
+          <UserFilter users={sortedUsers} value={userId} onChange={setUserId} disabled={isUsersLoading} />
+          <button
+            type="button"
+            className="task-report__generate"
+            onClick={() => void refetch()}
+            disabled={!canGenerate}
+          >
+            {isReportLoading ? 'Генеруємо…' : 'Згенерувати звіт'}
+          </button>
         </div>
       </header>
 
-      {isUsersError && (
-        <p className="task-report__error">Не вдалося завантажити список користувачів</p>
+      {isUsersError && <p className="task-report__error">Не вдалося завантажити список користувачів</p>}
+
+      {isRangeTooLong && (
+        <p className="task-report__error">
+          Максимальний період — {MAX_REPORT_DAYS} днів тому від сьогодні (обмеження Worksection)
+        </p>
       )}
 
-      <p className="task-report__summary">
-        Задач зі змінами за період: {reportTasks.length}
-      </p>
+      {!isUserSelected && <p className="task-report__hint">Оберіть користувача, щоб згенерувати звіт</p>}
+
+      {isReportError && (
+        <p className="task-report__error">
+          Не вдалося згенерувати звіт{reportError instanceof Error ? `: ${reportError.message}` : ''}
+        </p>
+      )}
+
+      {isReportLoaded && <p className="task-report__summary">Задач зі змінами за період: {reportTasks.length}</p>}
 
       <div className="task-report__list">
         {reportTasks.map((task) => (

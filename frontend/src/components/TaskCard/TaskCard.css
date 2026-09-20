@@ -152,6 +152,10 @@
   background: var(--text);
 }
 
+.task-card__event--comment .task-card__event-dot {
+  background: var(--accent-border);
+}
+
 .task-card__event-body {
   display: flex;
   flex-direction: column;

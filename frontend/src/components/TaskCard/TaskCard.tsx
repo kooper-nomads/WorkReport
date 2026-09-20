@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react'
-import { TASK_STATUS_LABELS } from '../../constants/taskStatus'
 import type { Task, TaskEvent, TaskUser } from '../../types/task'
 import './TaskCard.css'
 
@@ -31,8 +30,9 @@ function UserBadge({ label, user }: { label: string; user: TaskUser }) {
 }
 
 function EventRow({ event }: { event: TaskEvent }) {
+  const variant = event.type === 'comment' ? 'comment' : event.action
   return (
-    <li className={`task-card__event task-card__event--${event.action}`}>
+    <li className={`task-card__event task-card__event--${variant}`}>
       <span className="task-card__event-dot" />
       <div className="task-card__event-body">
         <span className="task-card__event-summary">{event.summary}</span>
@@ -49,9 +49,6 @@ export function TaskCard({ task }: TaskCardProps) {
     <article className="task-card">
       <header className="task-card__header">
         <span className="task-card__id">#{task.id}</span>
-        <span className={`task-card__status task-card__status--${task.status}`}>
-          {TASK_STATUS_LABELS[task.status]}
-        </span>
       </header>
 
       <h3 className="task-card__name">{task.name}</h3>

@@ -8,9 +8,11 @@ export interface Period {
 interface PeriodFilterProps {
   value: Period
   onChange: (period: Period) => void
+  minFrom?: string
+  maxTo?: string
 }
 
-export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
+export function PeriodFilter({ value, onChange, minFrom, maxTo }: PeriodFilterProps) {
   return (
     <div className="period-filter">
       <label className="period-filter__field">
@@ -18,6 +20,7 @@ export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
         <input
           type="date"
           value={value.from}
+          min={minFrom}
           max={value.to}
           onChange={(event) => onChange({ ...value, from: event.target.value })}
         />
@@ -29,6 +32,7 @@ export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
           type="date"
           value={value.to}
           min={value.from}
+          max={maxTo}
           onChange={(event) => onChange({ ...value, to: event.target.value })}
         />
       </label>

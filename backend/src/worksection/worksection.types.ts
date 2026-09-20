@@ -28,6 +28,14 @@ export interface WorksectionEvent {
 
 export type WorksectionTaskStatus = 'active' | 'done';
 
+export interface WorksectionTaskParent {
+  id: number;
+  name: string;
+  page: string;
+  status: WorksectionTaskStatus;
+  priority: string;
+}
+
 export interface WorksectionTask {
   id: number;
   name: string;
@@ -39,5 +47,6 @@ export interface WorksectionTask {
   project: { id: number; name: string; page: string };
   date_added: string;
   date_closed?: string;
-  tags: Record<string, string>;
+  tags?: Record<string, string>;
+  parent?: WorksectionTaskParent;
 }

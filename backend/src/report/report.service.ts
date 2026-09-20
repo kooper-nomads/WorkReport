@@ -5,6 +5,7 @@ import type { ReportTask } from './report.types.js';
 
 const UPDATE_FIELD_LABELS: Record<string, string> = {
   title: 'назву',
+  text: 'опис',
   tags: 'мітки',
   user_to: 'виконавця',
   priority: 'пріоритет',
@@ -19,7 +20,53 @@ function extractTaskId(event: WorksectionEvent): number | undefined {
   return match ? Number(match[1]) : undefined;
 }
 
+function getEventType(event: WorksectionEvent): 'task' | 'comment' {
+  return event.object.type === 'comment' ? 'comment' : 'task';
+}
+
+function formatValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.map((item) => formatValue(item)).join(', ') : '—';
+  }
+  if (value === '' || value === null || value === undefined) {
+    return '—';
+  }
+  if (typeof value === 'object') {
+    return 'name' in value ? String((value as { name: unknown }).name) : JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function describeUpdate(event: WorksectionEvent): string {
+  const newFields = event.new ?? {};
+  const oldFields = event.old ?? {};
+  const fields = Object.keys(newFields);
+
+  if (fields.length === 0) {
+    return 'Задачу оновлено';
+  }
+
+  const changes = fields.map((field) => {
+    const label = UPDATE_FIELD_LABELS[field] ?? field;
+    const newValue = formatValue(newFields[field]);
+    return field in oldFields
+      ? `${label}: «${formatValue(oldFields[field])}» → «${newValue}»`
+      : `${label}: «${newValue}»`;
+  });
+
+  return `Оновлено — ${changes.join('; ')}`;
+}
+
+function describeComment(event: WorksectionEvent): string {
+  const text = event.new?.text;
+  return typeof text === 'string' && text.length > 0 ? `Додано коментар: «${text}»` : 'Додано коментар';
+}
+
 function describeEvent(event: WorksectionEvent): string {
+  if (event.object.type === 'comment') {
+    return describeComment(event);
+  }
+
   switch (event.action) {
     case 'post':
       return 'Задачу створено';
@@ -29,10 +76,8 @@ function describeEvent(event: WorksectionEvent): string {
       return 'Задачу повторно відкрито';
     case 'delete':
       return 'Задачу видалено';
-    case 'update': {
-      const changed = Object.keys(event.new ?? {}).map((field) => UPDATE_FIELD_LABELS[field] ?? field);
-      return changed.length > 0 ? `Змінено: ${changed.join(', ')}` : 'Задачу оновлено';
-    }
+    case 'update':
+      return describeUpdate(event);
     default:
       return `Подія: ${event.action}`;
   }
@@ -51,7 +96,7 @@ export class ReportService {
       'get_events',
       { period: `${days}d` },
     );
-
+    
     const eventsByTaskId = new Map<number, WorksectionEvent[]>();
     for (const event of eventsResponse.data) {
       if (event.user_from.id !== userId) continue;
@@ -84,14 +129,16 @@ export class ReportService {
       status: task.status,
       author: { id: String(task.user_from.id), name: task.user_from.name },
       assignee: { id: String(task.user_to.id), name: task.user_to.name },
-      tags: Object.entries(task.tags).map(([id, label]) => ({ id, label })),
+      tags: Object.entries(task.tags ?? {}).map(([id, label]) => ({ id, label })),
       events: events.map((event, index) => ({
         id: `${task.id}-${index}`,
+        type: getEventType(event),
         action: event.action,
         date: event.date_added,
         userFrom: event.user_from.name,
         summary: describeEvent(event),
       })),
+      ...(task.parent ? { parent: { id: task.parent.id, name: task.parent.name } } : {}),
     };
   }
 }

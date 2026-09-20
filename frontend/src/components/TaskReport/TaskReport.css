@@ -29,10 +29,33 @@
   gap: 16px;
 }
 
+.task-report__generate {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+
+.task-report__generate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .task-report__error {
   margin: 0;
   font-size: 13px;
   color: #d33;
+}
+
+.task-report__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
 }
 
 .task-report__summary {

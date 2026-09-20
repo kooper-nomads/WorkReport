@@ -12,10 +12,16 @@ export interface ReportTaskTag {
 
 export interface ReportTaskEvent {
   id: string;
+  type: 'task' | 'comment';
   action: string;
   date: string;
   userFrom: string;
   summary: string;
+}
+
+export interface ReportTaskParent {
+  id: number;
+  name: string;
 }
 
 export interface ReportTask {
@@ -26,4 +32,5 @@ export interface ReportTask {
   assignee: ReportTaskUser;
   tags: ReportTaskTag[];
   events: ReportTaskEvent[];
+  parent?: ReportTaskParent;
 }
