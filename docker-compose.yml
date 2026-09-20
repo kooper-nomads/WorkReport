@@ -3,6 +3,8 @@ services:
     build: ./frontend
     ports:
       - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:3001
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -15,7 +17,10 @@ services:
       - "3001:3001"
     environment:
       PORT: 3001
+      FRONTEND_URL: http://localhost:5173,http://127.0.0.1:5173
       DATABASE_URL: postgresql://worksection:worksection@postgres:5432/worksection
+      WORKSECTION_ACCOUNT_URL: ${WORKSECTION_ACCOUNT_URL}
+      WORKSECTION_API_KEY: ${WORKSECTION_API_KEY}
     volumes:
       - ./backend:/app
       - /app/node_modules
