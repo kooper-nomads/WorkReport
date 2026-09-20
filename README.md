@@ -9,6 +9,7 @@
 5. [Ліміти запитів та авторизація](#5-ліміти-запитів-та-авторизація)
 6. [Готові комбінації запитів: звіт по задачах, над якими працював користувач за період](#6-готові-комбінації-запитів-звіт-по-задачах-над-якими-працював-користувач-за-період)
 7. [Опис необхідних ключів та налаштувань](#7-опис-необхідних-ключів-та-налаштувань)
+8. [Структура репозиторію та розгортання](#8-структура-репозиторію-та-розгортання)
 
 ## 1. Проєкти: `get_projects` та `get_events`
 
@@ -168,3 +169,51 @@ https://youraccount.worksection.com/api/admin/v2/?action=get_tasks&id_project=26
 Джерело: [worksection.com/en/faq/api/api-start/1911.html](https://worksection.com/en/faq/api/api-start/1911.html)
 
 **Чому не OAuth 2.0:** OAuth розрахований на сторонній застосунок, якому окремий користувач через браузер надає доступ до свого акаунту. У нас інтеграція з одним власним акаунтом без інтерактивного логіну — OAuth додав би зайву інфраструктуру (редірект, оновлення токена раз на добу) без жодної переваги над статичним ключем.
+
+## 8. Структура репозиторію та розгортання
+
+Репозиторій — монорепо з двома незалежними проєктами:
+
+```
+/
+├── frontend/   # React + Vite + TypeScript
+├── backend/    # NestJS + TypeScript
+└── docker-compose.yml
+```
+
+### Запуск через Docker Compose (рекомендовано)
+
+Піднімає одразу три сервіси: `frontend` (Vite dev-сервер), `backend` (NestJS) і `postgres`.
+
+```bash
+docker compose up --build
+```
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3001
+- PostgreSQL: `localhost:5432` (`user/password/db` = `worksection`, налаштування — у `docker-compose.yml`)
+
+Зупинити: `docker compose down` (дані Postgres лишаються у volume `postgres_data`; `docker compose down -v` видаляє й їх).
+
+### Локальний запуск без Docker
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+**Backend:**
+```bash
+cd backend
+npm install
+npm run start:dev
+```
+
+Для локального запуску backend без Docker знадобиться власний PostgreSQL, підключення до якого налаштовується через змінну середовища `DATABASE_URL`.
+
+### Контейнери
+
+- `frontend/Dockerfile` і `backend/Dockerfile` — окремий образ на `node:24-alpine` для кожного сервісу.
+- У `docker-compose.yml` код монтується як volume для гарячого перезавантаження (dev-режим); окремого production-конфігу поки немає.

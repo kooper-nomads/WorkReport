@@ -1,0 +1,42 @@
+.task-report {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.task-report__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.task-report__title {
+  margin: 0;
+  font-size: 22px;
+  color: var(--text-h);
+}
+
+.task-report__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.task-report__summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.task-report__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

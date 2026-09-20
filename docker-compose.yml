@@ -1,9 +1,37 @@
 services:
-  app:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - .:/app
+  frontend:
+    build: ./frontend
     ports:
-      - "3000:3000"
-    command: npm start
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://worksection:worksection@postgres:5432/worksection
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: worksection
+      POSTGRES_PASSWORD: worksection
+      POSTGRES_DB: worksection
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

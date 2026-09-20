@@ -112,3 +112,63 @@
   background: var(--tag-color, var(--social-bg));
   color: var(--text-h);
 }
+
+.task-card__history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.task-card__history-title {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.task-card__events {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-card__event {
+  display: flex;
+  gap: 8px;
+}
+
+.task-card__event-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.task-card__event--close .task-card__event-dot {
+  background: #2a9d5c;
+}
+
+.task-card__event--post .task-card__event-dot {
+  background: var(--text);
+}
+
+.task-card__event-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task-card__event-summary {
+  font-size: 13px;
+  color: var(--text-h);
+}
+
+.task-card__event-meta {
+  font-size: 12px;
+  color: var(--text);
+}

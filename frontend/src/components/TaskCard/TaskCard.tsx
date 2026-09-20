@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { TASK_STATUS_LABELS } from '../../constants/taskStatus'
-import type { Task, TaskUser } from '../../types/task'
+import type { Task, TaskEvent, TaskUser } from '../../types/task'
 import './TaskCard.css'
 
 interface TaskCardProps {
@@ -27,6 +27,20 @@ function UserBadge({ label, user }: { label: string; user: TaskUser }) {
         {user.name}
       </span>
     </div>
+  )
+}
+
+function EventRow({ event }: { event: TaskEvent }) {
+  return (
+    <li className={`task-card__event task-card__event--${event.action}`}>
+      <span className="task-card__event-dot" />
+      <div className="task-card__event-body">
+        <span className="task-card__event-summary">{event.summary}</span>
+        <span className="task-card__event-meta">
+          {event.date} · {event.userFrom}
+        </span>
+      </div>
+    </li>
   )
 }
 
@@ -59,6 +73,17 @@ export function TaskCard({ task }: TaskCardProps) {
             </li>
           ))}
         </ul>
+      )}
+
+      {task.events.length > 0 && (
+        <div className="task-card__history">
+          <span className="task-card__history-title">Історія змін за період</span>
+          <ul className="task-card__events">
+            {task.events.map((event) => (
+              <EventRow key={event.id} event={event} />
+            ))}
+          </ul>
+        </div>
       )}
     </article>
   )

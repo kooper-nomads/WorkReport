@@ -12,6 +12,16 @@ export interface TaskTag {
   color?: string
 }
 
+export type TaskEventAction = 'post' | 'update' | 'close'
+
+export interface TaskEvent {
+  id: string
+  action: TaskEventAction
+  date: string
+  userFrom: string
+  summary: string
+}
+
 export interface Task {
   id: string | number
   name: string
@@ -19,4 +29,5 @@ export interface Task {
   author: TaskUser
   assignee: TaskUser
   tags: TaskTag[]
+  events: TaskEvent[]
 }
