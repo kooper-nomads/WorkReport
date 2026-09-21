@@ -15,12 +15,12 @@ services:
     build: ./backend
     ports:
       - "3001:3001"
+    env_file:
+      - ./backend/.env
     environment:
       PORT: 3001
       FRONTEND_URL: http://localhost:5173,http://127.0.0.1:5173
       DATABASE_URL: postgresql://worksection:worksection@postgres:5432/worksection
-      WORKSECTION_ACCOUNT_URL: ${WORKSECTION_ACCOUNT_URL}
-      WORKSECTION_API_KEY: ${WORKSECTION_API_KEY}
     volumes:
       - ./backend:/app
       - /app/node_modules
