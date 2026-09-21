@@ -26,13 +26,20 @@ export interface TaskParent {
   name: string
 }
 
+export interface TaskProject {
+  id: string | number
+  name: string
+}
+
 export interface Task {
   id: string | number
   name: string
   status: TaskStatus
-  author: TaskUser
   assignee: TaskUser
   tags: TaskTag[]
   events: TaskEvent[]
+  author?: TaskUser
   parent?: TaskParent
+  project?: TaskProject
+  assignedAt?: string
 }

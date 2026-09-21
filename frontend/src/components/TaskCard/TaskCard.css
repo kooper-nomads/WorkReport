@@ -48,6 +48,18 @@
   color: var(--text-h);
 }
 
+.task-card__project {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.task-card__assigned-at {
+  font-size: 12px;
+  color: var(--text);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
 .task-card__users {
   display: flex;
   flex-wrap: wrap;

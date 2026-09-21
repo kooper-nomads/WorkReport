@@ -53,8 +53,10 @@ export function TaskCard({ task }: TaskCardProps) {
 
       <h3 className="task-card__name">{task.name}</h3>
 
+      {task.project && <span className="task-card__project">{task.project.name}</span>}
+
       <div className="task-card__users">
-        <UserBadge label="Від" user={task.author} />
+        {task.author && <UserBadge label="Від" user={task.author} />}
         <UserBadge label="Кому" user={task.assignee} />
       </div>
 
@@ -81,6 +83,10 @@ export function TaskCard({ task }: TaskCardProps) {
             ))}
           </ul>
         </div>
+      )}
+
+      {task.events.length === 0 && task.assignedAt && (
+        <span className="task-card__assigned-at">Закріплено: {task.assignedAt}</span>
       )}
     </article>
   )

@@ -1,73 +1,96 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { EventsService } from '../events/events.service.js';
 import { WorksectionService } from '../worksection/worksection.service.js';
+import { parseWorksectionDate } from '../worksection/worksection-date.util.js';
 import type { WorksectionEvent, WorksectionResponse, WorksectionTask } from '../worksection/worksection.types.js';
 import type { AssignedTask } from './assigned-tasks.types.js';
 
-// Temporary: reads assignment history from get_events, capped at Worksection's 30-day rolling
-// window. Once webhooks persist events into our own DB, this should query that store instead
-// and drop the 30-day ceiling.
-function extractAssignedUserId(event: WorksectionEvent): number | undefined {
-  const userTo = event.new?.user_to;
+interface AssignmentChange {
+  time: number;
+  date: string;
+  fromUserId?: number;
+  toUserId: number;
+}
+
+function extractUserToId(fields: Record<string, unknown> | undefined): number | undefined {
+  const userTo = fields?.user_to;
   if (userTo && typeof userTo === 'object' && 'id' in userTo) {
     return (userTo as { id: number }).id;
   }
   return undefined;
 }
 
-// Worksection date_added has no timezone offset (e.g. '2026-09-19 13:37') — treated as local
-// time of the Node process. See "Possible Timezone Mismatch in Period Filtering" in the vault.
-function parseWorksectionDate(dateAdded: string): number {
-  return new Date(dateAdded.replace(' ', 'T')).getTime();
+function groupAssignmentChangesByTask(events: WorksectionEvent[]): Map<number, AssignmentChange[]> {
+  const byTask = new Map<number, AssignmentChange[]>();
+  for (const event of events) {
+    if (event.object.type !== 'task') continue;
+
+    const toUserId = extractUserToId(event.new);
+    if (toUserId === undefined) continue;
+
+    const change: AssignmentChange = {
+      time: parseWorksectionDate(event.date_added),
+      date: event.date_added,
+      toUserId,
+      fromUserId: extractUserToId(event.old),
+    };
+
+    const list = byTask.get(event.object.id) ?? [];
+    list.push(change);
+    byTask.set(event.object.id, list);
+  }
+
+  for (const list of byTask.values()) {
+    list.sort((a, b) => a.time - b.time);
+  }
+  return byTask;
 }
 
-// get_events only accepts a relative rolling window (Xd|Xh|Xm) from "now" — pick the tightest
-// unit that covers the requested duration, capped by Worksection's own limits per unit.
-function toWorksectionPeriod(durationMs: number): string {
-  const minutes = Math.ceil(durationMs / 60_000);
-  if (minutes <= 360) return `${minutes}m`;
+// Walks a task's chronological assignment changes to find whether `userId` held it at any
+// point overlapping [from, to], returning the date that holding period began. Each change only
+// tells us who held the task *before* it, not since when — so a match against the segment
+// before the very first recorded change (i.e. the assignment predates our fetched event
+// history) is reported without a known start date.
+function findAssignmentWithinWindow(
+  changes: AssignmentChange[],
+  userId: number,
+  from: number,
+  to: number,
+): { assignedAt?: string } | undefined {
+  let match: { assignedAt?: string } | undefined;
 
-  const hours = Math.ceil(durationMs / 3_600_000);
-  if (hours <= 72) return `${hours}h`;
+  const first = changes[0];
+  if (first.fromUserId === userId && first.time > from) {
+    match = { assignedAt: undefined };
+  }
 
-  const days = Math.ceil(durationMs / 86_400_000);
-  return `${days}d`;
+  for (let i = 0; i < changes.length; i++) {
+    const segmentStart = changes[i].time;
+    const segmentEnd = i + 1 < changes.length ? changes[i + 1].time : Infinity;
+    if (changes[i].toUserId === userId && segmentStart <= to && segmentEnd > from) {
+      match = { assignedAt: changes[i].date };
+    }
+  }
+
+  return match;
 }
 
 @Injectable()
 export class AssignedTasksService {
-  constructor(private readonly worksectionService: WorksectionService) {}
+  constructor(
+    private readonly eventsService: EventsService,
+    private readonly worksectionService: WorksectionService,
+  ) {}
 
   async findAssigned(userId: number, from: number, to: number): Promise<AssignedTask[]> {
-    if (from >= to) {
-      throw new BadRequestException('"from" must be before "to"');
-    }
+    const events = await this.eventsService.findEvents(from, to);
+    const changesByTaskId = groupAssignmentChangesByTask(events);
 
-    const now = Date.now();
-    const durationFromNow = now - from;
-    if (durationFromNow <= 0) {
-      throw new BadRequestException('"from" must be in the past');
-    }
-    if (durationFromNow > 30 * 86_400_000) {
-      throw new BadRequestException('"from" cannot be more than 30 days ago (Worksection get_events limit)');
-    }
-
-    const eventsResponse = await this.worksectionService.request<WorksectionResponse<WorksectionEvent[]>>(
-      'get_events',
-      { period: toWorksectionPeriod(durationFromNow) },
-    );
-
-    const assignedAtByTaskId = new Map<number, { date: string; time: number }>();
-    for (const event of eventsResponse.data) {
-      if (event.object.type !== 'task') continue;
-      if (extractAssignedUserId(event) !== userId) continue;
-
-      const eventTime = parseWorksectionDate(event.date_added);
-      if (eventTime < from || eventTime > to) continue;
-
-      const taskId = event.object.id;
-      const latestSoFar = assignedAtByTaskId.get(taskId);
-      if (!latestSoFar || eventTime > latestSoFar.time) {
-        assignedAtByTaskId.set(taskId, { date: event.date_added, time: eventTime });
+    const assignedAtByTaskId = new Map<number, string | undefined>();
+    for (const [taskId, changes] of changesByTaskId) {
+      const match = findAssignmentWithinWindow(changes, userId, from, to);
+      if (match) {
+        assignedAtByTaskId.set(taskId, match.assignedAt);
       }
     }
 
@@ -81,10 +104,10 @@ export class AssignedTasksService {
       { filter: `id in (${taskIds.join(',')})` },
     );
 
-    return tasksResponse.data.map((task) => this.toAssignedTask(task, assignedAtByTaskId.get(task.id)!.date));
+    return tasksResponse.data.map((task) => this.toAssignedTask(task, assignedAtByTaskId.get(task.id)));
   }
 
-  private toAssignedTask(task: WorksectionTask, assignedAt: string): AssignedTask {
+  private toAssignedTask(task: WorksectionTask, assignedAt: string | undefined): AssignedTask {
     return {
       id: task.id,
       name: task.name,
@@ -92,7 +115,7 @@ export class AssignedTasksService {
       project: { id: task.project.id, name: task.project.name },
       assignee: { id: String(task.user_to.id), name: task.user_to.name },
       tags: Object.entries(task.tags ?? {}).map(([id, label]) => ({ id, label })),
-      assignedAt,
+      ...(assignedAt ? { assignedAt } : {}),
     };
   }
 }

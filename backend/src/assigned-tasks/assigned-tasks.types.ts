@@ -13,5 +13,7 @@ export interface AssignedTask {
   project: AssignedTaskProject;
   assignee: ReportTaskUser;
   tags: ReportTaskTag[];
-  assignedAt: string;
+  // Absent when the task was already assigned to this user before our fetched event
+  // history begins — we know they held it, just not since exactly when.
+  assignedAt?: string;
 }

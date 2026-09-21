@@ -4,16 +4,18 @@ import { PeriodFilter } from '../PeriodFilter/PeriodFilter'
 import { ALL_USERS, UserFilter } from '../UserFilter/UserFilter'
 import { TaskCard } from '../TaskCard/TaskCard'
 import { useUsers } from '../../api/useUsers'
-import { useReport } from '../../api/useReport'
+import { useAssignedTasks } from '../../api/useAssignedTasks'
 import { daysAgo, daysBetween, today } from '../../utils/date'
-import type { TaskUser } from '../../types/task'
+import type { Task, TaskUser } from '../../types/task'
 import './TaskReport.css'
 
-const MAX_REPORT_DAYS = 30
+const MAX_PERIOD_DAYS = 30
 
-function isEventInPeriod(eventDate: string, period: Period) {
-  const day = eventDate.slice(0, 10)
-  return day >= period.from && day <= period.to
+function toRangeTimestamps(period: Period): { from: number; to: number } {
+  return {
+    from: new Date(`${period.from}T00:00:00`).getTime(),
+    to: new Date(`${period.to}T23:59:59.999`).getTime(),
+  }
 }
 
 export function TaskReport() {
@@ -30,30 +32,35 @@ export function TaskReport() {
   )
 
   const daysFromToday = daysBetween(period.from, today())
-  const isRangeTooLong = daysFromToday > MAX_REPORT_DAYS
+  const isRangeTooLong = daysFromToday > MAX_PERIOD_DAYS
   const isUserSelected = userId !== ALL_USERS
+  const { from, to } = toRangeTimestamps(period)
 
   const {
-    data: reportData,
+    data: assignedTasksData,
     refetch,
-    isFetching: isReportLoading,
-    isError: isReportError,
-    error: reportError,
-    isSuccess: isReportLoaded,
-  } = useReport(Number(userId), Math.min(Math.max(daysFromToday, 1), MAX_REPORT_DAYS))
+    isFetching: isTasksLoading,
+    isError: isTasksError,
+    error: tasksError,
+    isSuccess: isTasksLoaded,
+  } = useAssignedTasks(Number(userId), from, to)
 
-  const reportTasks = useMemo(
-    () =>
-      (reportData ?? [])
-        .map((task) => ({
-          ...task,
-          events: task.events.filter((event) => isEventInPeriod(event.date, period)),
-        }))
-        .filter((task) => task.events.length > 0),
-    [reportData, period],
+  const assignedTasks = useMemo(
+    (): Task[] =>
+      (assignedTasksData ?? []).map((task) => ({
+        id: task.id,
+        name: task.name,
+        status: task.status,
+        assignee: task.assignee,
+        tags: task.tags,
+        events: [],
+        project: task.project,
+        assignedAt: task.assignedAt,
+      })),
+    [assignedTasksData],
   )
 
-  const canGenerate = isUserSelected && !isRangeTooLong && !isReportLoading
+  const canGenerate = isUserSelected && !isRangeTooLong && !isTasksLoading
 
   return (
     <div className="task-report">
@@ -63,7 +70,7 @@ export function TaskReport() {
           <PeriodFilter
             value={period}
             onChange={setPeriod}
-            minFrom={daysAgo(MAX_REPORT_DAYS - 1)}
+            minFrom={daysAgo(MAX_PERIOD_DAYS - 1)}
             maxTo={today()}
           />
           <UserFilter users={sortedUsers} value={userId} onChange={setUserId} disabled={isUsersLoading} />
@@ -73,7 +80,7 @@ export function TaskReport() {
             onClick={() => void refetch()}
             disabled={!canGenerate}
           >
-            {isReportLoading ? 'Генеруємо…' : 'Згенерувати звіт'}
+            {isTasksLoading ? 'Генеруємо…' : 'Згенерувати звіт'}
           </button>
         </div>
       </header>
@@ -82,22 +89,22 @@ export function TaskReport() {
 
       {isRangeTooLong && (
         <p className="task-report__error">
-          Максимальний період — {MAX_REPORT_DAYS} днів тому від сьогодні (обмеження Worksection)
+          Максимальний період — {MAX_PERIOD_DAYS} днів тому від сьогодні (обмеження Worksection)
         </p>
       )}
 
       {!isUserSelected && <p className="task-report__hint">Оберіть користувача, щоб згенерувати звіт</p>}
 
-      {isReportError && (
+      {isTasksError && (
         <p className="task-report__error">
-          Не вдалося згенерувати звіт{reportError instanceof Error ? `: ${reportError.message}` : ''}
+          Не вдалося згенерувати звіт{tasksError instanceof Error ? `: ${tasksError.message}` : ''}
         </p>
       )}
 
-      {isReportLoaded && <p className="task-report__summary">Задач зі змінами за період: {reportTasks.length}</p>}
+      {isTasksLoaded && <p className="task-report__summary">Закріплених задач за період: {assignedTasks.length}</p>}
 
       <div className="task-report__list">
-        {reportTasks.map((task) => (
+        {assignedTasks.map((task) => (
           <TaskCard key={task.id} task={task} />
         ))}
       </div>
