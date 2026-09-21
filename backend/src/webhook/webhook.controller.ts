@@ -1,6 +1,8 @@
 import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller('webhooks')
+@SkipThrottle()
 export class WebhookController {
   @Post()
   @HttpCode(200)

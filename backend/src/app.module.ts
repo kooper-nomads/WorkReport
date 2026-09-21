@@ -1,14 +1,33 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { WorksectionModule } from './worksection/worksection.module.js';
+import { EventsModule } from './events/events.module.js';
 import { UsersModule } from './users/users.module.js';
+import { TagsModule } from './tags/tags.module.js';
+import { ProjectsModule } from './projects/projects.module.js';
 import { ReportModule } from './report/report.module.js';
+import { AssignedTasksModule } from './assigned-tasks/assigned-tasks.module.js';
 import { WebhookModule } from './webhook/webhook.module.js';
+import { AppThrottlerGuard } from './rate-limit/app-throttler.guard.js';
 
 @Module({
-  imports: [WorksectionModule, UsersModule, ReportModule, WebhookModule],
+  imports: [
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60_000, limit: 100 }],
+    }),
+    WorksectionModule,
+    EventsModule,
+    UsersModule,
+    TagsModule,
+    ProjectsModule,
+    ReportModule,
+    AssignedTasksModule,
+    WebhookModule,
+  ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: AppThrottlerGuard }],
 })
 export class AppModule {}

@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { EventsService } from '../events/events.service.js';
 import { WorksectionService } from '../worksection/worksection.service.js';
+import { parseWorksectionDate } from '../worksection/worksection-date.util.js';
 import type { WorksectionEvent, WorksectionResponse, WorksectionTask } from '../worksection/worksection.types.js';
 import type { ReportTask } from './report.types.js';
 
@@ -85,20 +87,25 @@ function describeEvent(event: WorksectionEvent): string {
 
 @Injectable()
 export class ReportService {
-  constructor(private readonly worksectionService: WorksectionService) {}
+  constructor(
+    private readonly eventsService: EventsService,
+    private readonly worksectionService: WorksectionService,
+  ) {}
 
   async getReport(userId: number, days: number): Promise<ReportTask[]> {
     if (days < 1 || days > 30) {
       throw new BadRequestException('days must be between 1 and 30 (Worksection get_events limit)');
     }
 
-    const eventsResponse = await this.worksectionService.request<WorksectionResponse<WorksectionEvent[]>>(
-      'get_events',
-      { period: `${days}d` },
-    );
-    
+    const to = Date.now();
+    const from = to - days * 86_400_000;
+    const events = (await this.eventsService.findEvents(from, to)).filter((event) => {
+      const eventTime = parseWorksectionDate(event.date_added);
+      return eventTime >= from && eventTime <= to;
+    });
+
     const eventsByTaskId = new Map<number, WorksectionEvent[]>();
-    for (const event of eventsResponse.data) {
+    for (const event of events) {
       if (event.user_from.id !== userId) continue;
 
       const taskId = extractTaskId(event);
