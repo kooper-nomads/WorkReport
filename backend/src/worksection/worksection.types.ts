@@ -1,6 +1,7 @@
 export interface WorksectionResponse<T> {
   status: 'ok' | 'error';
   data: T;
+  message?: string;
 }
 
 export interface WorksectionUser {
