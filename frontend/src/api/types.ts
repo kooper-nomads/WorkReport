@@ -4,6 +4,17 @@ export interface ApiUser {
   name: string
 }
 
+export interface ApiTagGroup {
+  id: number
+  title: string
+}
+
+export interface ApiTag {
+  id: number
+  title: string
+  group: ApiTagGroup
+}
+
 export interface ApiAssignedTask {
   id: number
   name: string
