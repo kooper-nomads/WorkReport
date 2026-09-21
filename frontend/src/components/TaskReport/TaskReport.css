@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 16px;
   padding: 24px;
-  max-width: 760px;
+  max-width: 1100px;
   margin: 0 auto;
   text-align: left;
 }
@@ -64,8 +64,15 @@
   color: var(--text);
 }
 
-.task-report__list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.task-report__columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 640px) {
+  .task-report__columns {
+    grid-template-columns: 1fr;
+  }
 }

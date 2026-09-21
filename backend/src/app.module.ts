@@ -9,7 +9,7 @@ import { UsersModule } from './users/users.module.js';
 import { TagsModule } from './tags/tags.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { ReportModule } from './report/report.module.js';
-import { AssignedTasksModule } from './assigned-tasks/assigned-tasks.module.js';
+import { TasksModule } from './tasks/tasks.module.js';
 import { WebhookModule } from './webhook/webhook.module.js';
 import { AppThrottlerGuard } from './rate-limit/app-throttler.guard.js';
 
@@ -24,7 +24,7 @@ import { AppThrottlerGuard } from './rate-limit/app-throttler.guard.js';
     TagsModule,
     ProjectsModule,
     ReportModule,
-    AssignedTasksModule,
+    TasksModule,
     WebhookModule,
   ],
   controllers: [AppController],

@@ -22,5 +22,4 @@ export interface ApiAssignedTask {
   project: { id: number; name: string }
   assignee: { id: string; name: string }
   tags: { id: string; label: string }[]
-  assignedAt?: string
 }

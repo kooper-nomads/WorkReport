@@ -4,13 +4,14 @@ import { PeriodFilter } from '../PeriodFilter/PeriodFilter'
 import { ALL_USERS, UserFilter } from '../UserFilter/UserFilter'
 import { ALL_TAGS, TagFilter } from '../TagFilter/TagFilter'
 import { ALL_TAG_GROUPS, TagGroupFilter } from '../TagGroupFilter/TagGroupFilter'
-import { TaskCard } from '../TaskCard/TaskCard'
+import { TaskColumn } from '../TaskColumn/TaskColumn'
 import { useUsers } from '../../api/useUsers'
 import { useTags } from '../../api/useTags'
 import { useTagGroups } from '../../api/useTagGroups'
-import { useAssignedTasks } from '../../api/useAssignedTasks'
+import { useActiveTasks, useDoneTasks } from '../../api/useTasks'
 import { daysAgo, daysBetween, today } from '../../utils/date'
 import type { Task, TaskUser } from '../../types/task'
+import type { ApiAssignedTask } from '../../api/types'
 import './TaskReport.css'
 
 const MAX_PERIOD_DAYS = 30
@@ -22,9 +23,25 @@ function toRangeTimestamps(period: Period): { from: number; to: number } {
   }
 }
 
+function toTask(task: ApiAssignedTask): Task {
+  return {
+    id: task.id,
+    name: task.name,
+    status: task.status,
+    assignee: task.assignee,
+    tags: task.tags,
+    events: [],
+    project: task.project,
+  }
+}
+
+function filterByTag(tasks: Task[], tagId: string): Task[] {
+  return tagId === ALL_TAGS ? tasks : tasks.filter((task) => task.tags.some((tag) => tag.id === tagId))
+}
+
 export function TaskReport() {
   const [period, setPeriod] = useState<Period>({ from: daysAgo(7), to: today() })
-  const [userId, setUserId] = useState<string>(ALL_USERS)
+  const [userEmail, setUserEmail] = useState<string>(ALL_USERS)
   const [tagGroupId, setTagGroupId] = useState<string>(ALL_TAG_GROUPS)
   const [tagId, setTagId] = useState<string>(ALL_TAGS)
 
@@ -32,7 +49,7 @@ export function TaskReport() {
   const sortedUsers = useMemo(
     () =>
       (users ?? [])
-        .map((user): TaskUser => ({ id: String(user.id), name: user.name }))
+        .map((user): TaskUser => ({ id: user.email, name: user.name }))
         .sort((a, b) => a.name.localeCompare(b.name)),
     [users],
   )
@@ -68,38 +85,41 @@ export function TaskReport() {
 
   const daysFromToday = daysBetween(period.from, today())
   const isRangeTooLong = daysFromToday > MAX_PERIOD_DAYS
-  const isUserSelected = userId !== ALL_USERS
+  const isUserSelected = userEmail !== ALL_USERS
   const { from, to } = toRangeTimestamps(period)
 
   const {
-    data: assignedTasksData,
-    refetch,
-    isFetching: isTasksLoading,
-    isError: isTasksError,
-    error: tasksError,
-    isSuccess: isTasksLoaded,
-  } = useAssignedTasks(Number(userId), from, to)
+    data: activeTasksData,
+    refetch: refetchActive,
+    isFetching: isActiveLoading,
+    isError: isActiveError,
+    error: activeError,
+    isSuccess: isActiveLoaded,
+  } = useActiveTasks(userEmail)
 
-  const assignedTasks = useMemo(
-    (): Task[] =>
-      (assignedTasksData ?? []).map((task) => ({
-        id: task.id,
-        name: task.name,
-        status: task.status,
-        assignee: task.assignee,
-        tags: task.tags,
-        events: [],
-        project: task.project,
-        assignedAt: task.assignedAt,
-      })),
-    [assignedTasksData],
-  )
+  const {
+    data: doneTasksData,
+    refetch: refetchDone,
+    isFetching: isDoneLoading,
+    isError: isDoneError,
+    error: doneError,
+    isSuccess: isDoneLoaded,
+  } = useDoneTasks(userEmail, from, to)
 
-  const filteredTasks = useMemo(
-    () =>
-      tagId === ALL_TAGS ? assignedTasks : assignedTasks.filter((task) => task.tags.some((tag) => tag.id === tagId)),
-    [assignedTasks, tagId],
-  )
+  const activeTasksAll = useMemo(() => (activeTasksData ?? []).map(toTask), [activeTasksData])
+  const doneTasksAll = useMemo(() => (doneTasksData ?? []).map(toTask), [doneTasksData])
+
+  const activeTasks = useMemo(() => filterByTag(activeTasksAll, tagId), [activeTasksAll, tagId])
+  const doneTasks = useMemo(() => filterByTag(doneTasksAll, tagId), [doneTasksAll, tagId])
+
+  const isTasksLoading = isActiveLoading || isDoneLoading
+  const isTasksError = isActiveError || isDoneError
+  const tasksError = activeError ?? doneError
+
+  const handleGenerate = () => {
+    void refetchActive()
+    void refetchDone()
+  }
 
   const canGenerate = isUserSelected && !isRangeTooLong && !isTasksLoading
 
@@ -114,7 +134,7 @@ export function TaskReport() {
             minFrom={daysAgo(MAX_PERIOD_DAYS - 1)}
             maxTo={today()}
           />
-          <UserFilter users={sortedUsers} value={userId} onChange={setUserId} disabled={isUsersLoading} />
+          <UserFilter users={sortedUsers} value={userEmail} onChange={setUserEmail} disabled={isUsersLoading} />
           <TagGroupFilter
             groups={sortedTagGroups}
             value={tagGroupId}
@@ -122,12 +142,7 @@ export function TaskReport() {
             disabled={isTagGroupsLoading}
           />
           <TagFilter tags={visibleTags} value={tagId} onChange={setTagId} disabled={isTagsLoading} />
-          <button
-            type="button"
-            className="task-report__generate"
-            onClick={() => void refetch()}
-            disabled={!canGenerate}
-          >
+          <button type="button" className="task-report__generate" onClick={handleGenerate} disabled={!canGenerate}>
             {isTasksLoading ? 'Генеруємо…' : 'Згенерувати звіт'}
           </button>
         </div>
@@ -141,7 +156,7 @@ export function TaskReport() {
 
       {isRangeTooLong && (
         <p className="task-report__error">
-          Максимальний період — {MAX_PERIOD_DAYS} днів тому від сьогодні (обмеження Worksection)
+          Максимальний період — {MAX_PERIOD_DAYS} днів тому від сьогодні (для колонки «Готово»)
         </p>
       )}
 
@@ -153,12 +168,9 @@ export function TaskReport() {
         </p>
       )}
 
-      {isTasksLoaded && <p className="task-report__summary">Закріплених задач за період: {filteredTasks.length}</p>}
-
-      <div className="task-report__list">
-        {filteredTasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
-        ))}
+      <div className="task-report__columns">
+        <TaskColumn title="В роботі" status="active" tasks={activeTasks} isLoaded={isActiveLoaded} />
+        <TaskColumn title="Готово" status="done" tasks={doneTasks} isLoaded={isDoneLoaded} />
       </div>
     </div>
   )

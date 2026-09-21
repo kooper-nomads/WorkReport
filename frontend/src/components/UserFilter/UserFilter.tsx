@@ -6,7 +6,7 @@ export const ALL_USERS = 'all'
 interface UserFilterProps {
   users: TaskUser[]
   value: string
-  onChange: (userId: string) => void
+  onChange: (userEmail: string) => void
   disabled?: boolean
 }
 
