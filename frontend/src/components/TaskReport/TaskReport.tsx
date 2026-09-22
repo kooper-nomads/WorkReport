@@ -4,7 +4,7 @@ import { PeriodFilter } from '../PeriodFilter/PeriodFilter'
 import { ALL_USERS, UserFilter } from '../UserFilter/UserFilter'
 import { TaskColumn } from '../TaskColumn/TaskColumn'
 import { useUsers } from '../../api/useUsers'
-import { useActiveTasks, useDoneTasks } from '../../api/useTasks'
+import { useTasksByStatus } from '../../api/useTasks'
 import { daysAgo, daysBetween, today } from '../../utils/date'
 import type { Task, TaskUser } from '../../types/task'
 import type { ApiAssignedTask } from '../../api/types'
@@ -24,6 +24,8 @@ function toTask(task: ApiAssignedTask): Task {
     id: task.id,
     name: task.name,
     status: task.status,
+    statusTag: task.statusTag,
+    author: task.author,
     assignee: task.assignee,
     tags: task.tags,
     events: [],
@@ -50,33 +52,20 @@ export function TaskReport() {
   const { from, to } = toRangeTimestamps(period)
 
   const {
-    data: activeTasksData,
-    refetch: refetchActive,
-    isFetching: isActiveLoading,
-    isError: isActiveError,
-    error: activeError,
-    isSuccess: isActiveLoaded,
-  } = useActiveTasks(userEmail)
+    data: groupedTasksData,
+    refetch: refetchTasks,
+    isFetching: isTasksLoading,
+    isError: isTasksError,
+    error: tasksError,
+    isSuccess: isTasksLoaded,
+  } = useTasksByStatus(userEmail, from, to)
 
-  const {
-    data: doneTasksData,
-    refetch: refetchDone,
-    isFetching: isDoneLoading,
-    isError: isDoneError,
-    error: doneError,
-    isSuccess: isDoneLoaded,
-  } = useDoneTasks(userEmail, from, to)
-
-  const activeTasks = useMemo(() => (activeTasksData ?? []).map(toTask), [activeTasksData])
-  const doneTasks = useMemo(() => (doneTasksData ?? []).map(toTask), [doneTasksData])
-
-  const isTasksLoading = isActiveLoading || isDoneLoading
-  const isTasksError = isActiveError || isDoneError
-  const tasksError = activeError ?? doneError
+  const todoTasks = useMemo(() => (groupedTasksData?.todo ?? []).map(toTask), [groupedTasksData])
+  const inProgressTasks = useMemo(() => (groupedTasksData?.in_progress ?? []).map(toTask), [groupedTasksData])
+  const doneTasks = useMemo(() => (groupedTasksData?.done ?? []).map(toTask), [groupedTasksData])
 
   const handleGenerate = () => {
-    void refetchActive()
-    void refetchDone()
+    void refetchTasks()
   }
 
   const canGenerate = isUserSelected && !isRangeTooLong && !isTasksLoading
@@ -116,8 +105,9 @@ export function TaskReport() {
       )}
 
       <div className="task-report__columns">
-        <TaskColumn title="В роботі" status="active" tasks={activeTasks} isLoaded={isActiveLoaded} />
-        <TaskColumn title="Готово" status="done" tasks={doneTasks} isLoaded={isDoneLoaded} />
+        <TaskColumn title="До виконання" group="todo" tasks={todoTasks} isLoaded={isTasksLoaded} />
+        <TaskColumn title="В процесі" group="in_progress" tasks={inProgressTasks} isLoaded={isTasksLoaded} />
+        <TaskColumn title="Виконано" group="done" tasks={doneTasks} isLoaded={isTasksLoaded} />
       </div>
     </div>
   )

@@ -66,7 +66,6 @@ export class WorksectionService {
       .update(query + this.apiKey)
       .digest('hex');
     const url = `${this.accountUrl}/api/admin/v2/?${query}&hash=${hash}`;
-
     let response: Response;
     try {
       response = await fetch(url);

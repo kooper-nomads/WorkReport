@@ -1,5 +1,7 @@
 export type TaskStatus = 'active' | 'done'
 
+export type TaskStatusGroup = 'todo' | 'in_progress' | 'done'
+
 export interface TaskUser {
   id: string
   name: string
@@ -30,6 +32,7 @@ export interface Task {
   id: string | number
   name: string
   status: TaskStatus
+  statusTag: string | null
   assignee: TaskUser
   tags: TaskTag[]
   events: TaskEvent[]

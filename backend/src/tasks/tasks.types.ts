@@ -1,4 +1,5 @@
 import type { WorksectionTaskStatus } from '../worksection/worksection.types.js';
+import type { TaskStatusGroup, TaskStatusTag } from './task-status-group.js';
 
 export interface AssignedTaskProject {
   id: number;
@@ -19,7 +20,17 @@ export interface AssignedTask {
   id: number;
   name: string;
   status: WorksectionTaskStatus;
+  statusTag: TaskStatusTag | null;
   project: AssignedTaskProject;
+  author: AssignedTaskUser;
   assignee: AssignedTaskUser;
   tags: AssignedTaskTag[];
 }
+
+export interface TasksGroupedByStatus {
+  todo: AssignedTask[];
+  in_progress: AssignedTask[];
+  done: AssignedTask[];
+}
+
+export type { TaskStatusGroup };

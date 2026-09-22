@@ -45,10 +45,13 @@ function EventRow({ event }: { event: TaskEvent }) {
 }
 
 export function TaskCard({ task }: TaskCardProps) {
+  const otherTags = task.tags.filter((tag) => tag.label !== task.statusTag)
+
   return (
     <article className="task-card">
       <header className="task-card__header">
         <span className="task-card__id">#{task.id}</span>
+        {task.statusTag && <span className="task-card__status">{task.statusTag}</span>}
       </header>
 
       <h3 className="task-card__name">{task.name}</h3>
@@ -60,9 +63,9 @@ export function TaskCard({ task }: TaskCardProps) {
         <UserBadge label="Кому" user={task.assignee} />
       </div>
 
-      {task.tags.length > 0 && (
+      {otherTags.length > 0 && (
         <ul className="task-card__tags">
-          {task.tags.map((tag) => (
+          {otherTags.map((tag) => (
             <li
               key={tag.id}
               className="task-card__tag"

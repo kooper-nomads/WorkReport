@@ -19,6 +19,10 @@
   border-top: 3px solid var(--accent);
 }
 
+.task-column--in_progress .task-column__header {
+  border-top-color: #d69e2e;
+}
+
 .task-column--done .task-column__header {
   border-top-color: #2a9d5c;
 }

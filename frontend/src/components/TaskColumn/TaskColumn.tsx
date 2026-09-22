@@ -1,21 +1,21 @@
 import { useMemo } from 'react'
-import type { Task, TaskStatus } from '../../types/task'
+import type { Task, TaskStatusGroup } from '../../types/task'
 import { groupTasksByTag, UNTAGGED_GROUP_ID } from '../../utils/tasks'
 import { TaskCard } from '../TaskCard/TaskCard'
 import './TaskColumn.css'
 
 interface TaskColumnProps {
   title: string
-  status: TaskStatus
+  group: TaskStatusGroup
   tasks: Task[]
   isLoaded: boolean
 }
 
-export function TaskColumn({ title, status, tasks, isLoaded }: TaskColumnProps) {
+export function TaskColumn({ title, group, tasks, isLoaded }: TaskColumnProps) {
   const tagGroups = useMemo(() => groupTasksByTag(tasks), [tasks])
 
   return (
-    <div className={`task-column task-column--${status}`}>
+    <div className={`task-column task-column--${group}`}>
       <div className="task-column__header">
         <h2 className="task-column__title">{title}</h2>
         <span className="task-column__count">{tasks.length}</span>
