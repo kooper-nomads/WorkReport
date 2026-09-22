@@ -3,6 +3,7 @@ import type { Period } from '../PeriodFilter/PeriodFilter'
 import { PeriodFilter } from '../PeriodFilter/PeriodFilter'
 import { UserFilter } from '../UserFilter/UserFilter'
 import { TaskColumn } from '../TaskColumn/TaskColumn'
+import { Spinner } from '../Spinner/Spinner'
 import { useUsers } from '../../api/useUsers'
 import { useTasksByStatus } from '../../api/useTasks'
 import { daysAgo, daysBetween, today } from '../../utils/date'
@@ -81,8 +82,13 @@ export function TaskReport() {
             minFrom={daysAgo(MAX_PERIOD_DAYS - 1)}
             maxTo={today()}
           />
-          <UserFilter users={sortedUsers} value={userEmails} onChange={setUserEmails} disabled={isUsersLoading} />
+          {isUsersLoading ? (
+            <Spinner label="Завантажуємо користувачів…" />
+          ) : (
+            <UserFilter users={sortedUsers} value={userEmails} onChange={setUserEmails} />
+          )}
           <button type="button" className="task-report__generate" onClick={handleGenerate} disabled={!canGenerate}>
+            {isTasksLoading && <Spinner size={14} />}
             {isTasksLoading ? 'Генеруємо…' : 'Згенерувати звіт'}
           </button>
         </div>
@@ -96,19 +102,31 @@ export function TaskReport() {
         </p>
       )}
 
-      {!isUserSelected && <p className="task-report__hint">Оберіть користувачів, щоб згенерувати звіт</p>}
-
       {isTasksError && (
         <p className="task-report__error">
           Не вдалося згенерувати звіт{tasksError instanceof Error ? `: ${tasksError.message}` : ''}
         </p>
       )}
 
-      <div className="task-report__columns">
-        <TaskColumn title="До виконання" group="todo" tasks={todoTasks} isLoaded={isTasksLoaded} />
-        <TaskColumn title="В процесі" group="in_progress" tasks={inProgressTasks} isLoaded={isTasksLoaded} />
-        <TaskColumn title="Виконано" group="done" tasks={doneTasks} isLoaded={isTasksLoaded} />
-      </div>
+      {isTasksLoading ? (
+        <div className="task-report__loading">
+          <Spinner size={28} label="Завантажуємо задачі…" />
+        </div>
+      ) : isTasksLoaded ? (
+        <div className="task-report__columns">
+          <TaskColumn title="До виконання" group="todo" tasks={todoTasks} isLoaded={isTasksLoaded} />
+          <TaskColumn title="В процесі" group="in_progress" tasks={inProgressTasks} isLoaded={isTasksLoaded} />
+          <TaskColumn title="Виконано" group="done" tasks={doneTasks} isLoaded={isTasksLoaded} />
+        </div>
+      ) : (
+        <div className="task-report__placeholder">
+          <p className="task-report__hint">
+            {isUserSelected
+              ? 'Натисніть «Згенерувати звіт», щоб побачити задачі'
+              : 'Оберіть користувачів, щоб згенерувати звіт'}
+          </p>
+        </div>
+      )}
     </div>
   )
 }

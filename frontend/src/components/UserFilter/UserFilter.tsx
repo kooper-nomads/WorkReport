@@ -6,7 +6,6 @@ interface UserFilterProps {
   users: TaskUser[]
   value: string[]
   onChange: (userEmails: string[]) => void
-  disabled?: boolean
 }
 
 function summarize(users: TaskUser[], selected: string[]): string {
@@ -20,7 +19,7 @@ function summarize(users: TaskUser[], selected: string[]): string {
   return `Обрано: ${selected.length}`
 }
 
-export function UserFilter({ users, value, onChange, disabled }: UserFilterProps) {
+export function UserFilter({ users, value, onChange }: UserFilterProps) {
   const [isOpen, setIsOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -50,7 +49,6 @@ export function UserFilter({ users, value, onChange, disabled }: UserFilterProps
         type="button"
         className="user-filter__trigger"
         onClick={() => setIsOpen((open) => !open)}
-        disabled={disabled}
         aria-expanded={isOpen}
       >
         {summarize(users, value)}
