@@ -2,12 +2,8 @@ import { useMemo, useState } from 'react'
 import type { Period } from '../PeriodFilter/PeriodFilter'
 import { PeriodFilter } from '../PeriodFilter/PeriodFilter'
 import { ALL_USERS, UserFilter } from '../UserFilter/UserFilter'
-import { ALL_TAGS, TagFilter } from '../TagFilter/TagFilter'
-import { ALL_TAG_GROUPS, TagGroupFilter } from '../TagGroupFilter/TagGroupFilter'
 import { TaskColumn } from '../TaskColumn/TaskColumn'
 import { useUsers } from '../../api/useUsers'
-import { useTags } from '../../api/useTags'
-import { useTagGroups } from '../../api/useTagGroups'
 import { useActiveTasks, useDoneTasks } from '../../api/useTasks'
 import { daysAgo, daysBetween, today } from '../../utils/date'
 import type { Task, TaskUser } from '../../types/task'
@@ -35,15 +31,9 @@ function toTask(task: ApiAssignedTask): Task {
   }
 }
 
-function filterByTag(tasks: Task[], tagId: string): Task[] {
-  return tagId === ALL_TAGS ? tasks : tasks.filter((task) => task.tags.some((tag) => tag.id === tagId))
-}
-
 export function TaskReport() {
   const [period, setPeriod] = useState<Period>({ from: daysAgo(7), to: today() })
   const [userEmail, setUserEmail] = useState<string>(ALL_USERS)
-  const [tagGroupId, setTagGroupId] = useState<string>(ALL_TAG_GROUPS)
-  const [tagId, setTagId] = useState<string>(ALL_TAGS)
 
   const { data: users, isLoading: isUsersLoading, isError: isUsersError } = useUsers()
   const sortedUsers = useMemo(
@@ -53,35 +43,6 @@ export function TaskReport() {
         .sort((a, b) => a.name.localeCompare(b.name)),
     [users],
   )
-
-  const { data: tagGroups, isLoading: isTagGroupsLoading, isError: isTagGroupsError } = useTagGroups()
-  const sortedTagGroups = useMemo(
-    () =>
-      (tagGroups ?? [])
-        .map((group) => ({ id: String(group.id), title: group.title }))
-        .sort((a, b) => a.title.localeCompare(b.title)),
-    [tagGroups],
-  )
-
-  const { data: tags, isLoading: isTagsLoading, isError: isTagsError } = useTags()
-  const sortedTags = useMemo(
-    () =>
-      (tags ?? [])
-        .map((tag) => ({ id: String(tag.id), title: tag.title, groupId: String(tag.group.id) }))
-        .sort((a, b) => a.title.localeCompare(b.title)),
-    [tags],
-  )
-
-  const visibleTags = useMemo(
-    () =>
-      tagGroupId === ALL_TAG_GROUPS ? sortedTags : sortedTags.filter((tag) => tag.groupId === tagGroupId),
-    [sortedTags, tagGroupId],
-  )
-
-  const handleTagGroupChange = (nextTagGroupId: string) => {
-    setTagGroupId(nextTagGroupId)
-    setTagId(ALL_TAGS)
-  }
 
   const daysFromToday = daysBetween(period.from, today())
   const isRangeTooLong = daysFromToday > MAX_PERIOD_DAYS
@@ -106,11 +67,8 @@ export function TaskReport() {
     isSuccess: isDoneLoaded,
   } = useDoneTasks(userEmail, from, to)
 
-  const activeTasksAll = useMemo(() => (activeTasksData ?? []).map(toTask), [activeTasksData])
-  const doneTasksAll = useMemo(() => (doneTasksData ?? []).map(toTask), [doneTasksData])
-
-  const activeTasks = useMemo(() => filterByTag(activeTasksAll, tagId), [activeTasksAll, tagId])
-  const doneTasks = useMemo(() => filterByTag(doneTasksAll, tagId), [doneTasksAll, tagId])
+  const activeTasks = useMemo(() => (activeTasksData ?? []).map(toTask), [activeTasksData])
+  const doneTasks = useMemo(() => (doneTasksData ?? []).map(toTask), [doneTasksData])
 
   const isTasksLoading = isActiveLoading || isDoneLoading
   const isTasksError = isActiveError || isDoneError
@@ -135,13 +93,6 @@ export function TaskReport() {
             maxTo={today()}
           />
           <UserFilter users={sortedUsers} value={userEmail} onChange={setUserEmail} disabled={isUsersLoading} />
-          <TagGroupFilter
-            groups={sortedTagGroups}
-            value={tagGroupId}
-            onChange={handleTagGroupChange}
-            disabled={isTagGroupsLoading}
-          />
-          <TagFilter tags={visibleTags} value={tagId} onChange={setTagId} disabled={isTagsLoading} />
           <button type="button" className="task-report__generate" onClick={handleGenerate} disabled={!canGenerate}>
             {isTasksLoading ? 'Генеруємо…' : 'Згенерувати звіт'}
           </button>
@@ -149,10 +100,6 @@ export function TaskReport() {
       </header>
 
       {isUsersError && <p className="task-report__error">Не вдалося завантажити список користувачів</p>}
-
-      {isTagGroupsError && <p className="task-report__error">Не вдалося завантажити список груп тегів</p>}
-
-      {isTagsError && <p className="task-report__error">Не вдалося завантажити список тегів</p>}
 
       {isRangeTooLong && (
         <p className="task-report__error">
