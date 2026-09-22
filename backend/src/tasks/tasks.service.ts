@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { WorksectionService } from '../worksection/worksection.service.js';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { WORKSECTION_CLIENT, type WorksectionClient } from '../worksection/worksection-client.interface.js';
 import { formatWorksectionFilterDate } from '../worksection/worksection-date.util.js';
 import type { WorksectionResponse, WorksectionTask } from '../worksection/worksection.types.js';
 import { isTaskStatusTag, resolveTaskStatusGroup } from './task-status-group.js';
@@ -7,14 +7,14 @@ import type { AssignedTask, TasksGroupedByStatus } from './tasks.types.js';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly worksectionService: WorksectionService) {}
+  constructor(@Inject(WORKSECTION_CLIENT) private readonly worksectionClient: WorksectionClient) {}
 
   async findActive(userEmails: string[]): Promise<AssignedTask[]> {
     const emails = this.requireEmails(userEmails);
 
     // get_all_tasks has no email/user filter of its own — it always returns open tasks across
     // every project, so the assignee filter has to happen on our side.
-    const response = await this.worksectionService.request<WorksectionResponse<WorksectionTask[]>>('get_all_tasks', {
+    const response = await this.worksectionClient.request<WorksectionResponse<WorksectionTask[]>>('get_all_tasks', {
       filter: 'active',
     });
 
@@ -32,7 +32,7 @@ export class TasksService {
     // search_tasks' own email_user_to param only accepts a single address, so for multiple
     // users the assignee filter happens on our side, same as findActive.
     const filter = `dateclose>='${formatWorksectionFilterDate(from)}' and dateclose<='${formatWorksectionFilterDate(to)}'`;
-    const response = await this.worksectionService.request<WorksectionResponse<WorksectionTask[]>>('search_tasks', {
+    const response = await this.worksectionClient.request<WorksectionResponse<WorksectionTask[]>>('search_tasks', {
       status: 'done',
       filter,
     });

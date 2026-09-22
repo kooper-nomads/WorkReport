@@ -11,6 +11,12 @@ export interface WorksectionUser {
   [key: string]: unknown;
 }
 
+export interface WorksectionTag {
+  id: number;
+  title: string;
+  [key: string]: unknown;
+}
+
 export type WorksectionTaskStatus = 'active' | 'done';
 
 export interface WorksectionTask {

@@ -1,13 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { WorksectionService } from '../worksection/worksection.service.js';
+import { Inject, Injectable } from '@nestjs/common';
+import { WORKSECTION_CLIENT, type WorksectionClient } from '../worksection/worksection-client.interface.js';
 import type { WorksectionResponse, WorksectionUser } from '../worksection/worksection.types.js';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly worksectionService: WorksectionService) {}
+  constructor(@Inject(WORKSECTION_CLIENT) private readonly worksectionClient: WorksectionClient) {}
 
   async findAll(): Promise<WorksectionUser[]> {
-    const response = await this.worksectionService.request<WorksectionResponse<WorksectionUser[]>>('get_users');
+    const response = await this.worksectionClient.request<WorksectionResponse<WorksectionUser[]>>('get_users');
     return response.data;
   }
 }

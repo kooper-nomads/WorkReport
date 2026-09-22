@@ -1,0 +1,4 @@
+services:
+  frontend:
+    environment:
+      VITE_API_URL: https://patrick-grams-gap-pleasant.trycloudflare.com

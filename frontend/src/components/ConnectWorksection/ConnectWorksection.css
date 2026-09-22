@@ -1,0 +1,36 @@
+.connect-worksection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex: 1;
+  padding: 24px;
+  text-align: center;
+}
+
+.connect-worksection__hint {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.connect-worksection__error {
+  color: #e0245e;
+  font-size: 14px;
+}
+
+.connect-worksection__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  text-decoration: none;
+  cursor: pointer;
+}

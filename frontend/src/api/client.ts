@@ -1,7 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, init)
+  const response = await fetch(`${API_URL}${path}`, { credentials: 'include', ...init })
 
   if (!response.ok) {
     throw new Error(`Запит до бекенду завершився помилкою: ${response.status} ${response.statusText}`)

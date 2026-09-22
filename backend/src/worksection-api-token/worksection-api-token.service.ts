@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { WorksectionApiException } from './worksection.exceptions.js';
+import { WorksectionApiException } from '../worksection/worksection.exceptions.js';
 
 // Worksection enforces 1 request/second per account and returns no Retry-After or
 // structured status code for it — so we throttle proactively instead of reacting to errors.
@@ -11,7 +11,7 @@ const RETRY_DELAY_MS = 500;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 @Injectable()
-export class WorksectionService {
+export class WorksectionApiTokenService {
   private readonly accountUrl: string;
   private readonly apiKey: string;
   private queue: Promise<void> = Promise.resolve();

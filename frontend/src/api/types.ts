@@ -20,3 +20,14 @@ export interface ApiTasksGroupedByStatus {
   in_progress: ApiAssignedTask[]
   done: ApiAssignedTask[]
 }
+
+export interface ApiAuthStatus {
+  authMethod: 'api_key' | 'oauth'
+  connected: boolean
+  connection?: {
+    email: string
+    firstName: string
+    lastName: string
+    accountUrl: string
+  }
+}
