@@ -21,11 +21,6 @@ export interface TaskEvent {
   summary: string
 }
 
-export interface TaskParent {
-  id: string | number
-  name: string
-}
-
 export interface TaskProject {
   id: string | number
   name: string
@@ -39,7 +34,6 @@ export interface Task {
   tags: TaskTag[]
   events: TaskEvent[]
   author?: TaskUser
-  parent?: TaskParent
   project?: TaskProject
   assignedAt?: string
 }

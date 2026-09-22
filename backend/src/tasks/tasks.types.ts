@@ -1,9 +1,18 @@
 import type { WorksectionTaskStatus } from '../worksection/worksection.types.js';
-import type { ReportTaskTag, ReportTaskUser } from '../report/report.types.js';
 
 export interface AssignedTaskProject {
   id: number;
   name: string;
+}
+
+export interface AssignedTaskUser {
+  id: string;
+  name: string;
+}
+
+export interface AssignedTaskTag {
+  id: string;
+  label: string;
 }
 
 export interface AssignedTask {
@@ -11,6 +20,6 @@ export interface AssignedTask {
   name: string;
   status: WorksectionTaskStatus;
   project: AssignedTaskProject;
-  assignee: ReportTaskUser;
-  tags: ReportTaskTag[];
+  assignee: AssignedTaskUser;
+  tags: AssignedTaskTag[];
 }
