@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Period } from '../PeriodFilter/PeriodFilter'
 import { PeriodFilter } from '../PeriodFilter/PeriodFilter'
-import { ALL_USERS, UserFilter } from '../UserFilter/UserFilter'
+import { UserFilter } from '../UserFilter/UserFilter'
 import { TaskColumn } from '../TaskColumn/TaskColumn'
 import { useUsers } from '../../api/useUsers'
 import { useTasksByStatus } from '../../api/useTasks'
@@ -35,7 +35,7 @@ function toTask(task: ApiAssignedTask): Task {
 
 export function TaskReport() {
   const [period, setPeriod] = useState<Period>({ from: daysAgo(7), to: today() })
-  const [userEmail, setUserEmail] = useState<string>(ALL_USERS)
+  const [userEmails, setUserEmails] = useState<string[]>([])
 
   const { data: users, isLoading: isUsersLoading, isError: isUsersError } = useUsers()
   const sortedUsers = useMemo(
@@ -48,7 +48,7 @@ export function TaskReport() {
 
   const daysFromToday = daysBetween(period.from, today())
   const isRangeTooLong = daysFromToday > MAX_PERIOD_DAYS
-  const isUserSelected = userEmail !== ALL_USERS
+  const isUserSelected = userEmails.length > 0
   const { from, to } = toRangeTimestamps(period)
 
   const {
@@ -58,7 +58,7 @@ export function TaskReport() {
     isError: isTasksError,
     error: tasksError,
     isSuccess: isTasksLoaded,
-  } = useTasksByStatus(userEmail, from, to)
+  } = useTasksByStatus(userEmails, from, to)
 
   const todoTasks = useMemo(() => (groupedTasksData?.todo ?? []).map(toTask), [groupedTasksData])
   const inProgressTasks = useMemo(() => (groupedTasksData?.in_progress ?? []).map(toTask), [groupedTasksData])
@@ -81,7 +81,7 @@ export function TaskReport() {
             minFrom={daysAgo(MAX_PERIOD_DAYS - 1)}
             maxTo={today()}
           />
-          <UserFilter users={sortedUsers} value={userEmail} onChange={setUserEmail} disabled={isUsersLoading} />
+          <UserFilter users={sortedUsers} value={userEmails} onChange={setUserEmails} disabled={isUsersLoading} />
           <button type="button" className="task-report__generate" onClick={handleGenerate} disabled={!canGenerate}>
             {isTasksLoading ? 'Генеруємо…' : 'Згенерувати звіт'}
           </button>
@@ -96,7 +96,7 @@ export function TaskReport() {
         </p>
       )}
 
-      {!isUserSelected && <p className="task-report__hint">Оберіть користувача, щоб згенерувати звіт</p>}
+      {!isUserSelected && <p className="task-report__hint">Оберіть користувачів, щоб згенерувати звіт</p>}
 
       {isTasksError && (
         <p className="task-report__error">

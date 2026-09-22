@@ -9,10 +9,8 @@ import type { AssignedTask, TasksGroupedByStatus } from './tasks.types.js';
 export class TasksService {
   constructor(private readonly worksectionService: WorksectionService) {}
 
-  async findActive(userEmail: string): Promise<AssignedTask[]> {
-    if (!userEmail) {
-      throw new BadRequestException('"userEmail" is required');
-    }
+  async findActive(userEmails: string[]): Promise<AssignedTask[]> {
+    const emails = this.requireEmails(userEmails);
 
     // get_all_tasks has no email/user filter of its own — it always returns open tasks across
     // every project, so the assignee filter has to happen on our side.
@@ -21,34 +19,35 @@ export class TasksService {
     });
 
     return response.data
-      .filter((task) => task.user_to.email === userEmail)
+      .filter((task) => emails.has(task.user_to.email))
       .map((task) => this.toAssignedTask(task));
   }
 
-  async findDone(userEmail: string, from: number, to: number): Promise<AssignedTask[]> {
-    if (!userEmail) {
-      throw new BadRequestException('"userEmail" is required');
-    }
+  async findDone(userEmails: string[], from: number, to: number): Promise<AssignedTask[]> {
+    const emails = this.requireEmails(userEmails);
     if (from >= to) {
       throw new BadRequestException('"from" must be before "to"');
     }
 
+    // search_tasks' own email_user_to param only accepts a single address, so for multiple
+    // users the assignee filter happens on our side, same as findActive.
     const filter = `dateclose>='${formatWorksectionFilterDate(from)}' and dateclose<='${formatWorksectionFilterDate(to)}'`;
     const response = await this.worksectionService.request<WorksectionResponse<WorksectionTask[]>>('search_tasks', {
-      email_user_to: userEmail,
       status: 'done',
       filter,
     });
 
-    return response.data.map((task) => this.toAssignedTask(task));
+    return response.data
+      .filter((task) => emails.has(task.user_to.email))
+      .map((task) => this.toAssignedTask(task));
   }
 
   // The date range only constrains tasks whose actual Worksection `status` is `done` — active
   // tasks have no `dateclose` yet, so they're fetched unfiltered.
-  async findGroupedByStatus(userEmail: string, from: number, to: number): Promise<TasksGroupedByStatus> {
+  async findGroupedByStatus(userEmails: string[], from: number, to: number): Promise<TasksGroupedByStatus> {
     const [activeTasks, doneTasks] = await Promise.all([
-      this.findActive(userEmail),
-      this.findDone(userEmail, from, to),
+      this.findActive(userEmails),
+      this.findDone(userEmails, from, to),
     ]);
 
     const grouped: TasksGroupedByStatus = { todo: [], in_progress: [], done: [] };
@@ -59,6 +58,15 @@ export class TasksService {
     }
 
     return grouped;
+  }
+
+  private requireEmails(userEmails: string[]): Set<string> {
+    const emails = userEmails.filter((email) => email.length > 0);
+    if (emails.length === 0) {
+      throw new BadRequestException('"userEmail" is required');
+    }
+
+    return new Set(emails);
   }
 
   private toAssignedTask(task: WorksectionTask): AssignedTask {
