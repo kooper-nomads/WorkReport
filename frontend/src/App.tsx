@@ -16,7 +16,7 @@ function App() {
     )
   }
 
-  if (authStatus?.authMethod === 'oauth' && !authStatus.connected) {
+  if (authStatus?.platformAuthMethod === 'worksection_oauth' && !authStatus.connected) {
     return <ConnectWorksection />
   }
 

@@ -16,6 +16,7 @@ function requireEnv(name: string): string {
 
 interface AuthStatus {
   authMethod: 'api_key' | 'oauth';
+  platformAuthMethod: 'off' | 'worksection_oauth';
   connected: boolean;
   connection?: WorksectionConnectionStatus;
 }
@@ -23,7 +24,8 @@ interface AuthStatus {
 // No browser session/login is tracked here: the app has no per-viewer identity anywhere else
 // (/tasks, /users, /auth/status are all unauthenticated), so there's nothing meaningful to gate
 // behind "whoever's browser completed the OAuth handshake". These endpoints just manage the
-// app's single shared Worksection connection.
+// app's single shared Worksection connection. AUTH_METHOD only decides whether the frontend
+// treats "not connected yet" as a login wall (see status() below) — it doesn't change that.
 @Controller('auth')
 export class AuthController {
   constructor(private readonly worksectionOAuthService: WorksectionOAuthService) {}
@@ -82,17 +84,21 @@ export class AuthController {
     res.redirect(frontendUrl);
   }
 
-  // Tells the frontend which auth method is active and whether Worksection is connected, so it
-  // can decide whether to show the "log in" gate.
+  // Tells the frontend which auth method the backend uses for Worksection API calls
+  // (authMethod), whether the platform itself requires a Worksection login before showing the
+  // report (platformAuthMethod), and whether the shared Worksection connection is established
+  // (connected) — needed for either purpose, so it's fetched whenever either is oauth-based.
   @Get('status')
   async status(): Promise<AuthStatus> {
     const authMethod = process.env.WORKSECTION_AUTH_METHOD === 'oauth' ? 'oauth' : 'api_key';
-    if (authMethod !== 'oauth') {
-      return { authMethod, connected: false };
+    const platformAuthMethod = process.env.AUTH_METHOD === 'worksection_oauth' ? 'worksection_oauth' : 'off';
+
+    if (authMethod !== 'oauth' && platformAuthMethod !== 'worksection_oauth') {
+      return { authMethod, platformAuthMethod, connected: false };
     }
 
     const connection = await this.worksectionOAuthService.getStatus();
-    return { authMethod, connected: connection !== null, connection: connection ?? undefined };
+    return { authMethod, platformAuthMethod, connected: connection !== null, connection: connection ?? undefined };
   }
 
   // Disconnects the app's single shared Worksection connection, for everyone.

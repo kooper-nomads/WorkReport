@@ -25,6 +25,7 @@ export interface ApiTasksGroupedByStatus {
 
 export interface ApiAuthStatus {
   authMethod: 'api_key' | 'oauth'
+  platformAuthMethod: 'off' | 'worksection_oauth'
   connected: boolean
   connection?: {
     email: string
