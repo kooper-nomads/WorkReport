@@ -26,17 +26,40 @@ export function ConnectWorksection() {
   const [error] = useState(readAuthError)
 
   return (
-    <div className="connect-worksection">
-      <h2>Підключіть Worksection</h2>
-      <p className="connect-worksection__hint">
-        Щоб побачити звіт, увійдіть через Worksection — ми будемо використовувати ваш токен доступу
-        для запитів до Worksection API.
-      </p>
-      {error && <p className="connect-worksection__error">{error}</p>}
-      {/* Plain navigation, not a fetch: the backend responds with a redirect chain to Worksection. */}
-      <a className="connect-worksection__button" href={`${API_URL}/auth/worksection/login`}>
-        Увійти через Worksection
-      </a>
-    </div>
+    <main className="connect-worksection">
+      <section className="connect-worksection__card" aria-labelledby="connect-worksection-title">
+        <div className="connect-worksection__logo" aria-hidden="true">
+          W
+        </div>
+        <h1 id="connect-worksection-title" className="connect-worksection__title">
+          Вхід у платформу
+        </h1>
+        <p className="connect-worksection__hint">
+          Доступ до звітів по задачах надається через ваш акаунт Worksection.
+        </p>
+        {error && (
+          <p className="connect-worksection__error" role="alert">
+            {error}
+          </p>
+        )}
+        {/* Plain navigation, not a fetch: the backend responds with a redirect chain to Worksection. */}
+        <a className="connect-worksection__button" href={`${API_URL}/auth/worksection/login`}>
+          Увійти через Worksection
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M3 8h10m0 0L9 4m4 4-4 4"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </a>
+        <p className="connect-worksection__footnote">
+          Вас буде перенаправлено на сторінку авторизації Worksection. Ваш пароль не передається
+          на платформу.
+        </p>
+      </section>
+    </main>
   )
 }
