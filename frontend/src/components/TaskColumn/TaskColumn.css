@@ -2,11 +2,11 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  max-height: calc(100vh - 220px);
+  /* max-height: calc(100vh - 220px); */
   background: var(--social-bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
+  /* overflow: hidden; */
 }
 
 .task-column__header {
