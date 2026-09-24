@@ -196,7 +196,8 @@ https://youraccount.worksection.com/api/admin/v2/?action=get_tasks&id_project=26
 /
 ├── frontend/   # React + Vite + TypeScript
 ├── backend/    # NestJS + TypeScript
-└── docker-compose.yml
+├── docker-compose.yml
+└── .env        # опційно, лише для docker compose — див. нижче
 ```
 
 ### Запуск через Docker Compose (рекомендовано)
@@ -210,6 +211,12 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Backend: http://localhost:3001
 - PostgreSQL: `localhost:5432` (`user/password/db` = `worksection`, налаштування — у `docker-compose.yml`)
+
+`WORKSECTION_AUTH_METHOD` (перемикач api_key/oauth) і `BACKEND_PUBLIC_URL` (звідки бекенд реально доступний з браузера, напр. URL `cloudflared`-тунелю) винесені в кореневий `docker-compose.yml` через `${VAR}`-підстановку, а не в `backend/.env` — щоб їх можна було міняти в одному місці, не заходячи в бекенд. Скопіюй `.env.example` у `.env` у корені репозиторію і онови там.
+
+`BACKEND_PUBLIC_URL` одночасно керує і `VITE_API_URL` фронтенда, і `WORKSECTION_OAUTH_REDIRECT_URI` бекенда (`/auth/worksection/callback` додається автоматично) — вони мають бути одним і тим самим origin, інакше cookie з OAuth-state, виставлена під час `/login`, не долетить назад на `/callback`, і Worksection-логін впаде з "сесію прострочено". Той самий URL + `/auth/worksection/callback` треба зареєструвати як redirect URI в налаштуваннях OAuth-застосунку в Worksection.
+
+`docker-compose.yml` завжди перекриває однойменні значення з `backend/.env` (`environment:` має пріоритет над `env_file:`). Решта налаштувань (`WORKSECTION_API_KEY`, `WORKSECTION_OAUTH_CLIENT_ID`/`SECRET` тощо) — секрети, лишаються тільки в `backend/.env`.
 
 Зупинити: `docker compose down` (дані Postgres лишаються у volume `postgres_data`; `docker compose down -v` видаляє й їх).
 
