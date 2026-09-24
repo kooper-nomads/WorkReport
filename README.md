@@ -1,228 +1,109 @@
-# Worksection API — дослідження технічної можливості вивантаження та фільтрації даних за період
+# Worksection Task Report
+
+Звіт по задачах Worksection: для обраних користувачів і періоду показує дошку з колонками To Do / In Progress / Done.
+
+- `frontend/` — React 19 + Vite + TypeScript, TanStack Query
+- `backend/` — NestJS + TypeScript, Prisma + PostgreSQL
 
 ## Зміст
 
-1. [Проєкти: `get_projects` та `get_events`](#1-проєкти-get_projects-та-get_events)
-2. [Завдання: `get_all_tasks`, `get_tasks` та `search_tasks`](#2-завдання-get_all_tasks-get_tasks-та-search_tasks)
-3. [Мітки: `get_task_tags`, `get_project_tags`](#3-мітки-get_task_tags-get_project_tags)
-4. [Способи передачі часових параметрів](#4-способи-передачі-часових-параметрів)
-5. [Ліміти запитів та авторизація](#5-ліміти-запитів-та-авторизація)
-6. [Готові комбінації запитів: звіт по задачах, над якими працював користувач за період](#6-готові-комбінації-запитів-звіт-по-задачах-над-якими-працював-користувач-за-період)
-7. [Опис необхідних ключів та налаштувань](#7-опис-необхідних-ключів-та-налаштувань)
-8. [Структура репозиторію та розгортання](#8-структура-репозиторію-та-розгортання)
+1. [Швидкий старт (Docker Compose)](#швидкий-старт-docker-compose)
+2. [Налаштування](#налаштування)
+3. [Запуск без Docker](#запуск-без-docker)
+4. [Робота з проєктом](#робота-з-проєктом)
 
-## 1. Проєкти: `get_projects` та `get_events`
+## Швидкий старт (Docker Compose)
 
-**`get_projects`** — фільтра за періодом не має, лише `filter=active|pending|archive` (статус, не дата). Вибірка за часовий проміжок можлива тільки локальною фільтрацією по `date_added`/`date_start`/`date_end` після повного вивантаження.
-
-**`get_events`** — підтримує вибірку за період через `period=1m..360m|1h..72h|1d..30d`, опційно `id_project`. Обмеження: **максимум 30 днів**, і це rolling window від моменту виклику, а не довільний календарний діапазон.
-Джерело: [worksection.com/en/faq/api/api-projects/1653.html](https://worksection.com/en/faq/api/api-projects/1653.html)
-
-**Мітигація через webhooks:**
-Підписка на `post_project`/`update_project` знімає обидва обмеження на майбутнє — власний постійний лог без прив'язки до 30-денного вікна і без залежності від відсутності date-фільтра в `get_projects`. Діє лише проспективно: історія до моменту підключення хука так і залишається доступна тільки через разовий `get_projects`/`get_events` з їхніми штатними обмеженнями.
-
-Для сутності "Проєкт" у вебхуках доступні лише події створення і редагування — окремої події архівації/активації немає (на відміну від "Задача", де додатково є видалення та завершення). `get_events` так само не фіксує факт архівації чи повторної активації проєкту. Тобто зміну статусу проєкту (active/pending/archive) неможливо відстежити ні webhooks, ні `get_events` — єдиний робочий спосіб: періодичний `get_projects(filter=archive)` і порівняння зі своїм попереднім знімком.
-
-## 2. Завдання: `get_all_tasks`, `get_tasks` та `search_tasks`
-
-**`get_all_tasks`** — фільтра за датою немає, лише `filter=active` (статус).
-
-**`get_tasks`** — так само, лише `filter=active`. Потребує `id_project`.
-
-**`search_tasks`** — єдиний з трьох, що підтримує дату, через query-мову `filter=`:
-- `dateadd` — дата створення
-- `dateclose` — дата закриття
-- `datestart`/`dateend` — дата початку/дедлайну (не "оновлення")
-- Оператори `>,<,>=,<=,!=,=`, формат `'DD.MM.YYYY'`, комбінування `and`/`or`
-Джерело: [worksection.com/en/faq/api/api-task/1652.html](https://worksection.com/en/faq/api/api-task/1652.html)
-
-**Мітигація через webhooks:**
-Для сутності "Задача" підтримуються події створення, редагування, видалення і завершення. Подія редагування (`update_task`) дозволяє фіксувати момент реального оновлення задачі — на відміну від проєктів, де такої можливості немає взагалі.
-Джерело: [worksection.com/en/faq/api/webhooks/1868.html](https://worksection.com/en/faq/api/webhooks/1868.html)
-
-
-## 3. Мітки: `get_task_tags`, `get_project_tags`
-
-**`get_task_tags`/`get_project_tags`** — довідники тегів акаунту (з фільтром `group`/`type`/`access`). Використовуються **виключно для UI** — наповнення списку опцій у фільтрі-селекті мітками.
-
-**Фільтрація задач за міткою на стороні Worksection неможлива** — `search_tasks` не має поля тегу в query-мові фільтра (лише `id, project, parent, name, dateadd, datestart, dateend, dateclose`).
-
-**Архітектура фільтрації "період + мітка":**
-1. `search_tasks(filter=dateadd/dateclose за період)` — Worksection фільтрує за датою, відповідь одразу містить `tags` для кожної задачі.
-2. `get_task_tags`/`get_project_tags` — наповнюють список опцій у фільтрі-селекті.
-3. Фільтрація/групування отриманого списку задач за обраними в UI мітками — **на нашій стороні** (власний сервер або фронт), звірянням ID тегів з полем `tags` кожної задачі.
-
-## 4. Способи передачі часових параметрів
-
-З усіх 7 ендпоінтів, розглянутих у пунктах 1–3, дату підтримують лише **2**:
-
-| Ендпоінт | Параметр | Формат | Тип | Обмеження |
-|---|---|---|---|---|
-| `get_projects` | — | — | Немає підтримки дат | — |
-| `get_events` | `period` | `Xd`\|`Xh`\|`Xm` (напр. `30d`, `72h`, `360m`) | Відносний період від моменту виклику | **Максимум `30d`** — довше в минуле запитати неможливо |
-| `get_all_tasks` | — | — | Немає підтримки дат | — |
-| `get_tasks` | — | — | Немає підтримки дат | — |
-| `search_tasks` | `filter=dateadd\|datestart\|dateend\|dateclose` | `'DD.MM.YYYY'` | Абсолютна дата, оператори `>,<,>=,<=,!=,=` | Явного ліміту на ширину діапазону дат немає, але діє загальний ліміт акаунту — максимум 10 000 записів у відповіді |
-| `get_task_tags` | — | — | Немає підтримки дат | — |
-| `get_project_tags` | — | — | Немає підтримки дат | — |
-
-**Механізми принципово різні й несумісні між собою:**
-- `get_events` — відносне "ковзне вікно", без можливості задати довільний календарний діапазон.
-- `search_tasks` — абсолютні дати з повноцінними операторами порівняння (справжні "date ranges").
-
-**Timestamps (Unix epoch) і ISO8601 ніде не використовуються** — обидва методи оперують лише текстовим форматом `DD.MM.YYYY` (без часу доби).
-
-### Висновок
-
-**Проблема: `get_events` обмежений 30 днями (rolling window, не довільний календарний діапазон).**
-→ *Рішення:* підписка на `post_project`, `update_project`, `post_task`, `update_task`, `close_task` — власний постійний лог подій без прив'язки до 30-денного вікна, з можливістю запитувати будь-який довільний період.
-
-**Застереження щодо webhooks:** працюють лише **проспективно** — тільки для подій, що стались після підключення хука. Історія до цього моменту так і залишається обмежена штатним лімітом `get_events` у 30 днів.
-
-## 5. Ліміти запитів та авторизація
-
-### Авторизація
-
-| Спосіб | Base URL | Механізм |
-|---|---|---|
-| **Admin token** (API Key) | `{account_url}/api/admin/v2` | `hash = MD5(queryString + api_key)`, додається як query-параметр до кожного запиту |
-| **OAuth 2.0** | `{account_url}/api/oauth2` | access token як query-параметр; потребує `client_id`, `client_secret`, `redirect_url` |
-
-OAuth2 підтримує granular scopes під кожен домен окремо: `projects_read/write`, `tasks_read/write`, `tags_read/write`, `costs_read/write`, `files_read/write`, `users_read/write`, `contacts_read/write`, `administrative`. Для read-only інтеграції (вивантаження/звіти) можна видати токен лише з `_read` скоупами потрібних доменів, без адміністративного доступу.
-
-### Ліміти запитів (rate limits)
-
-Джерело: [worksection.com/en/faq/api/api-start/1921.html](https://worksection.com/en/faq/api/api-start/1921.html)
-
-- **1 запит/секунду** — при перевищенні помилка "too many requests".
-- **GET-запити:** максимум 8 kB URL → інакше `414 Request-URI Too Large`.
-- **POST-запити:** довжина URL необмежена, але текстові поля (опис задачі/проєкту) обрізаються мовчки на **65 kB** без помилки.
-- **Максимум 10 000 записів** на одну відповідь → далі помилка "Too many tasks (10000 max)".
-
-### Реалізація throttle та обробки помилок (`WorksectionService`)
-
-Worksection не повертає ні `429`, ні `Retry-After` для "too many requests" — помилка приходить у тілі `{status: 'error', message: ...}` при HTTP `200`. Через відсутність структурованого сигналу обрано **проактивний** throttle замість reactive retry-after-error:
-
-- `WorksectionService.request()` ставить кожен виклик у внутрішню чергу (промісний ланцюжок + `lastRequestAt`), що гарантує мінімум 1000мс між запитами до Worksection — незалежно від кількості одночасних викликів з різних сервісів.
-- Тіло відповіді перевіряється на `status === 'error'` (раніше не перевірялось узагалі — код дивився лише на HTTP-статус, а Worksection повертає прикладні помилки з HTTP `200`).
-- Retry (до 2 спроб, 500мс) — лише для мережевих збоїв і HTTP 5xx (`WorksectionApiException.retryable`). Помилки рівня застосунку (`status: 'error'`, 4xx) не ретраяться — повторний запит дасть той самий результат.
-
-**Розглянуті готові npm-пакети (свідомо не використані):**
-
-| Пакет | Що дає | Чому не взяли |
-|---|---|---|
-| `p-queue` | Черга з `concurrency`/`interval`/`intervalCap` — готовий аналог throttle-черги вище | Наша логіка — ~15 рядків без залежностей; бібліотека виправдана, якщо знадобляться пріоритети черги, `pause`/`clear`, або координація ліміту між кількома інстансами |
-| `bottleneck` | Throttle + retry/backoff в одному місці, підтримка reservoir і кластерного режиму через Redis | Overkill для одноакаунтної інтеграції з одним процесом; Redis-координація мала б сенс лише за кількох інстансів backend |
-| `p-retry` | Окремий retry з експоненційним backoff | Наш retry — фіксована затримка на 2 спроби, простіший за задачу; додав би залежність заради невеликого виграшу |
-
-Якщо застосунок стане multi-instance (кілька реплік backend б'ють в один Worksection-акаунт), власної in-process черги вже не вистачить — тоді `bottleneck` з Redis-бекендом стає доцільним.
-
-## 6. Готові комбінації запитів: звіт по задачах, над якими працював користувач за період
-
-**Мета:** отримати список задач, над якими конкретний користувач працював у вказаний період, згрупувати їх за мітками, і побудувати повну історію змін (статус, виконавець, коментарі) по цих задачах за той самий період.
-
-### Крок 1 — журнал подій користувача за період
-
-Джерело — події змін:
-- **Основне джерело:** власний накопичений лог з webhooks (підписка на редагування задачі, завершення задачі, коментарі), підключений заздалегідь. Worksection не зберігає й не віддає цю історію заднім числом — вхідні webhook-повідомлення потрібно зберігати у власній БД, а на своєму бекенді мати окремий ендпоінт для читання цього логу за потрібним користувачем/задачею/періодом.
-- **Ретроспектива в межах 30 днів:** використовується ендпоінт `get_events` — `action=get_events&id_project=<ID>&period=30d`.
-
-Залишаємо події, де `user_from` — потрібний користувач, а дата події потрапляє у вказаний період. Для коментарів ID задачі розпарсюється з поля `page`. Результат — журнал подій, згрупований по `id_task`.
-
-### Крок 2 — деталі знайдених задач одним запитом
-
-```
-action=search_tasks&filter=id in (<id1>,<id2>,<id3>,...)
-```
-Повертає статус, мітки, проєкт одразу по всьому списку задач з журналу Кроку 1.
-
-### Крок 3 — групування за мітками
-
-Локально, зіставленням обраних в UI міток з полем `tags` кожної задачі з Кроку 2.
-
-### Крок 4 — фінальний звіт
-
-Для кожної задачі — журнал подій за період (Крок 1) + поточні дані (Крок 2). Приклад одного запису звіту:
-
-```json
-[{
-  "task": {
-    "id": "1885877",
-    "name": "Example Task",
-    "status": "active",
-    "project": { "id": "111467", "name": "Example Project" },
-    "tags": { "613940": "Example Tag" }
-  },
-  "events": [
-    { "action": "post", "date_added": "2026-08-04 09:47", "user_from": "user@example.com", "new": { "title": "Example Task", "user_to": "user@example.com" } },
-    { "action": "update", "date_added": "2026-08-11 16:23", "user_from": "user@example.com", "old": { "user_to": "ANY" }, "new": { "user_to": "user@example.com" } },
-    { "action": "close", "date_added": "2026-08-19 18:52", "user_from": "user@example.com" }
-  ]
-}]
-```
-
-Агреговані показники по всьому звіту: створено / закрито / почав роботу (призначено виконавцем) / змінив статус / інші оновлення — виводяться скануванням `action` і `old`/`new` по журналах усіх задач.
-
-### Обмеження
-
-- Ретроспектива глибша за 30 днів можлива лише якщо webhooks були підключені заздалегідь.
-
-## 7. Опис необхідних ключів та налаштувань
-
-Потрібен лише один ключ — **адміністративний API-ключ (Admin token)**.
-
-**Де отримати:** аватар → налаштування акаунту → розділ API → показати ключ. Доступно лише власнику акаунту.
-Джерело: [worksection.com/ua/faq/api/api-start/1380.html](https://worksection.com/ua/faq/api/api-start/1380.html)
-
-**Як використовувати:** ключ не передається окремим параметром запиту — з нього рахується хеш разом з усіма параметрами запиту:
-```
-hash = MD5(query_params + api_key)
-```
-де `query_params` — рядок усіх параметрів запиту без самого хешу (наприклад `action=get_tasks&id_project=26`).
-
-**Приклад повного запиту:**
-```
-https://youraccount.worksection.com/api/admin/v2/?action=get_tasks&id_project=26&hash=ec3ab2c28f21b4a07424f8ed688d6644
-```
-Джерело: [worksection.com/en/faq/api/api-start/1911.html](https://worksection.com/en/faq/api/api-start/1911.html)
-
-**Чому не OAuth 2.0:** OAuth розрахований на сторонній застосунок, якому окремий користувач через браузер надає доступ до свого акаунту. У нас інтеграція з одним власним акаунтом без інтерактивного логіну — OAuth додав би зайву інфраструктуру (редірект, оновлення токена раз на добу) без жодної переваги над статичним ключем.
-
-## 8. Структура репозиторію та розгортання
-
-Репозиторій — монорепо з двома незалежними проєктами:
-
-```
-/
-├── frontend/   # React + Vite + TypeScript
-├── backend/    # NestJS + TypeScript
-├── docker-compose.yml
-└── .env        # опційно, лише для docker compose — див. нижче
-```
-
-### Запуск через Docker Compose (рекомендовано)
-
-Піднімає одразу три сервіси: `frontend` (Vite dev-сервер), `backend` (NestJS) і `postgres`.
+Потрібні Docker з Compose v2 і доступ до акаунту Worksection: API-ключ або OAuth-застосунок (див. [Налаштування](#налаштування)).
 
 ```bash
+cp .env.example .env                  # перемикачі авторизації та BACKEND_PUBLIC_URL
+cp backend/.env.example backend/.env  # секрети: API key та/або OAuth client
+# заповни backend/.env
+
 docker compose up --build
+docker compose exec backend npx prisma migrate deploy   # у другому терміналі
 ```
 
-- Frontend: http://localhost:5173
-- Backend: http://localhost:3001
-- PostgreSQL: `localhost:5432` (`user/password/db` = `worksection`, налаштування — у `docker-compose.yml`)
+| Сервіс | Адреса |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Backend | http://localhost:3001 |
+| PostgreSQL | `localhost:5432`, `user/password/db` = `worksection` |
 
-`WORKSECTION_AUTH_METHOD` (перемикач api_key/oauth), `AUTH_METHOD` (перемикач off/worksection_oauth) і `BACKEND_PUBLIC_URL` (звідки бекенд реально доступний з браузера, напр. URL `cloudflared`-тунелю) винесені в кореневий `docker-compose.yml` через `${VAR}`-підстановку, а не в `backend/.env` — щоб їх можна було міняти в одному місці, не заходячи в бекенд. Скопіюй `.env.example` у `.env` у корені репозиторію і онови там.
+**Міграції** автоматично не застосовуються. Команду `prisma migrate deploy` треба виконати після першого запуску і після появи нових міграцій у `backend/prisma/migrations`. Без неї OAuth-логін падає, бо немає таблиці `WorksectionConnection`.
 
-`WORKSECTION_AUTH_METHOD` і `AUTH_METHOD` — незалежні перемикачі. `WORKSECTION_AUTH_METHOD` вирішує, чим бекенд авторизує СВОЇ запити до Worksection API (api_key чи oauth). `AUTH_METHOD` вирішує, чи вимагає сама платформа логін через Worksection перед показом звіту: `off` (за замовчуванням) — звіт видно без логіну; `worksection_oauth` — перед звітом показується екран логіну через `/auth/worksection/login`, поки спільне OAuth-підключення не встановлене. Тому можливі всі комбінації: напр. `WORKSECTION_AUTH_METHOD=api_key` + `AUTH_METHOD=worksection_oauth` — логін на платформу через Worksection OAuth, а запити до API йдуть по статичному ключу; або `WORKSECTION_AUTH_METHOD=oauth` + `AUTH_METHOD=off` — платформа без логін-гейту, але спільне OAuth-підключення все одно потрібно один раз встановити через `/auth/worksection/login`, інакше запити до API впадуть.
+Зупинити: `docker compose down`. Дані Postgres лишаються у volume `postgres_data`; `docker compose down -v` видаляє й їх.
 
-`BACKEND_PUBLIC_URL` одночасно керує і `VITE_API_URL` фронтенда, і `WORKSECTION_OAUTH_REDIRECT_URI` бекенда (`/auth/worksection/callback` додається автоматично) — вони мають бути одним і тим самим origin, інакше cookie з OAuth-state, виставлена під час `/login`, не долетить назад на `/callback`, і Worksection-логін впаде з "сесію прострочено". Той самий URL + `/auth/worksection/callback` треба зареєструвати як redirect URI в налаштуваннях OAuth-застосунку в Worksection.
+## Налаштування
 
-`docker-compose.yml` завжди перекриває однойменні значення з `backend/.env` (`environment:` має пріоритет над `env_file:`). Решта налаштувань (`WORKSECTION_API_KEY`, `WORKSECTION_OAUTH_CLIENT_ID`/`SECRET` тощо) — секрети, лишаються тільки в `backend/.env`.
+### Де що задається
 
-Зупинити: `docker compose down` (дані Postgres лишаються у volume `postgres_data`; `docker compose down -v` видаляє й їх).
+- **Кореневий `.env`** — читається лише `docker-compose.yml` через `${VAR}`-підстановку. Тут перемикачі `WORKSECTION_AUTH_METHOD`, `AUTH_METHOD` і `BACKEND_PUBLIC_URL`. Під Docker ці значення перекривають однойменні з `backend/.env`.
+- **`backend/.env`** — секрети (API-ключ, OAuth client) і все інше. Без Docker бекенд читає тільки цей файл.
 
-### Локальний запуск без Docker
+### Доступ до Worksection API: `WORKSECTION_AUTH_METHOD`
+
+**`api_key`** (за замовчуванням) — адміністративний API-ключ.
+
+1. У Worksection: аватар → налаштування акаунту → API → показати ключ. Доступно лише власнику акаунту ([довідка](https://worksection.com/ua/faq/api/api-start/1380.html)).
+2. У `backend/.env`: `WORKSECTION_ACCOUNT_URL=https://youraccount.worksection.com` і `WORKSECTION_API_KEY=<ключ>`.
+
+**`oauth`** — OAuth 2.0.
+
+1. Зареєструй OAuth-застосунок у налаштуваннях акаунту Worksection (розділ API). Redirect URI: `<BACKEND_PUBLIC_URL>/auth/worksection/callback`, за замовчуванням `http://localhost:3001/auth/worksection/callback`.
+2. У `backend/.env`: `WORKSECTION_OAUTH_CLIENT_ID` і `WORKSECTION_OAUTH_CLIENT_SECRET`.
+3. Один раз залогінься кнопкою «Увійти через Worksection» у UI або відкрий `http://localhost:3001/auth/worksection/login`.
+
+Після логіну бекенд зберігає **одне спільне підключення на весь застосунок**: усі запити до API йдуть від імені того, хто залогінився. Токени оновлюються автоматично. `POST /auth/logout` відключає застосунок для всіх.
+
+### Логін на платформу: `AUTH_METHOD`
+
+- `off` (за замовчуванням) — звіт видно одразу.
+- `worksection_oauth` — поки OAuth-підключення не встановлене, замість звіту показується екран логіну через Worksection. Потрібні налаштування OAuth-застосунку з попереднього пункту, навіть якщо `WORKSECTION_AUTH_METHOD=api_key`.
+
+| `WORKSECTION_AUTH_METHOD` | `AUTH_METHOD` | Результат |
+|---|---|---|
+| `api_key` | `off` | Без логіну, запити по API-ключу |
+| `api_key` | `worksection_oauth` | Логін через Worksection, запити по API-ключу |
+| `oauth` | `off` | Без екрана логіну, але OAuth-підключення все одно треба один раз встановити через `/auth/worksection/login` |
+| `oauth` | `worksection_oauth` | Логін обов'язковий, запити від імені того, хто залогінився |
+
+### Доступ ззовні: `BACKEND_PUBLIC_URL`
+
+Адреса, за якою бекенд доступний з браузера. З неї формуються `VITE_API_URL` фронтенда і OAuth redirect URI бекенда. Для доступу через тунель (напр. `cloudflared`) достатньо змінити лише її:
+
+```
+BACKEND_PUBLIC_URL=https://<random>.trycloudflare.com
+```
+
+Той самий URL + `/auth/worksection/callback` треба додати як redirect URI в OAuth-застосунку Worksection. Фронтенд і бекенд мають працювати з одного origin, заданого цим URL, інакше OAuth-логін падає з помилкою «сесію прострочено».
+
+### Усі змінні
+
+| Змінна | Файл | Призначення |
+|---|---|---|
+| `WORKSECTION_AUTH_METHOD` | `.env` / `backend/.env` | `api_key` \| `oauth` |
+| `AUTH_METHOD` | `.env` / `backend/.env` | `off` \| `worksection_oauth` |
+| `BACKEND_PUBLIC_URL` | `.env` | Публічна адреса бекенда (лише Docker) |
+| `WORKSECTION_ACCOUNT_URL`, `WORKSECTION_API_KEY` | `backend/.env` | Для `api_key` |
+| `WORKSECTION_OAUTH_CLIENT_ID`, `WORKSECTION_OAUTH_CLIENT_SECRET` | `backend/.env` | Для OAuth |
+| `WORKSECTION_OAUTH_REDIRECT_URI` | `backend/.env` | Лише без Docker; під Docker береться з `BACKEND_PUBLIC_URL` |
+| `WORKSECTION_OAUTH_SCOPE` | `backend/.env` | Необов'язково; scopes через пробіл |
+| `PORT`, `FRONTEND_URL`, `DATABASE_URL` | `backend/.env` | Порт бекенда, дозволені CORS-origin через кому, PostgreSQL. Під Docker задані в `docker-compose.yml` |
+
+## Запуск без Docker
+
+Потрібні Node.js 24 і власний PostgreSQL.
+
+**Backend:**
+```bash
+cd backend
+npm install
+cp .env.example .env        # заповни, зокрема DATABASE_URL
+npx prisma migrate deploy
+npm run start:dev
+```
 
 **Frontend:**
 ```bash
@@ -231,16 +112,64 @@ npm install
 npm run dev
 ```
 
-**Backend:**
-```bash
-cd backend
-npm install
-npm run start:dev
+Кореневий `.env` у цьому режимі не читається. Усі змінні, зокрема `WORKSECTION_AUTH_METHOD`, `AUTH_METHOD` і `WORKSECTION_OAUTH_REDIRECT_URI`, беруться з `backend/.env`.
+
+## Робота з проєктом
+
+### Команди
+
+| Де | Команда | Що робить |
+|---|---|---|
+| `backend/` | `npm run start:dev` | Dev-сервер з hot reload |
+| `backend/` | `npm test` | Unit-тести (Vitest) |
+| `backend/` | `npm run test:e2e` | E2E-тести |
+| `backend/` | `npm run lint` | Лінтер (oxlint) |
+| `backend/` | `npx prisma migrate dev --name <name>` | Нова міграція після зміни `prisma/schema.prisma` |
+| `frontend/` | `npm run dev` | Vite dev-сервер |
+| `frontend/` | `npm run build` | Type-check і production-збірка |
+| `frontend/` | `npm run lint` | ESLint |
+
+Під Docker команди запускаються всередині контейнера, напр. `docker compose exec backend npm test`. Код змонтований як volume, тож зміни підхоплюються без перезбірки. Перезбірка (`docker compose up --build`) потрібна після зміни залежностей або `schema.prisma`.
+
+### Структура
+
+```
+frontend/src/
+├── api/              # fetch-клієнт, хуки useAuth / useUsers / useTasks
+└── components/       # ConnectWorksection, TaskReport, TaskColumn, TaskCard,
+                      # UserFilter, PeriodFilter, Spinner
+backend/
+├── prisma/           # schema.prisma, міграції
+└── src/
+    ├── auth/                  # /auth/* — OAuth login/callback, status, logout
+    ├── tasks/                 # /tasks/* — звіт по задачах, групування за статусними мітками
+    ├── users/                 # /users
+    ├── webhook/               # /webhooks
+    ├── worksection/           # спільні типи, інтерфейс клієнта, винятки
+    ├── worksection-api-token/ # клієнт Worksection на API-ключі
+    ├── worksection-oauth/     # клієнт Worksection на OAuth, зберігання підключення
+    ├── worksection-client/    # вибір клієнта за WORKSECTION_AUTH_METHOD
+    ├── rate-limit/            # throttler guard
+    └── prisma/                # PrismaService
 ```
 
-Для локального запуску backend без Docker знадобиться власний PostgreSQL, підключення до якого налаштовується через змінну середовища `DATABASE_URL`.
+### API бекенда
 
-### Контейнери
+| Метод | Шлях | Опис |
+|---|---|---|
+| `GET` | `/users` | Користувачі акаунту Worksection |
+| `GET` | `/tasks/by-status?userEmail=&from=&to=` | Задачі, згруповані в `todo` / `in_progress` / `done` |
+| `GET` | `/tasks/active?userEmail=` | Відкриті задачі виконавців |
+| `GET` | `/tasks/done?userEmail=&from=&to=` | Задачі, закриті в періоді |
+| `GET` | `/auth/status` | Режими авторизації і стан OAuth-підключення |
+| `GET` | `/auth/worksection/login` | Редірект на сторінку згоди Worksection |
+| `GET` | `/auth/worksection/callback` | Обмін `code` на токени, редірект на фронтенд |
+| `POST` | `/auth/logout` | Видалення спільного OAuth-підключення |
+| `POST` | `/webhooks` | Прийом webhook-ів Worksection (поки лише логування) |
 
-- `frontend/Dockerfile` і `backend/Dockerfile` — окремий образ на `node:24-alpine` для кожного сервісу.
-- У `docker-compose.yml` код монтується як volume для гарячого перезавантаження (dev-режим); окремого production-конфігу поки немає.
+`userEmail` можна передати кілька разів для кількох користувачів. `from`/`to` — Unix timestamp у мілісекундах. Усі ендпоінти, крім `/webhooks`, обмежені до 100 запитів за хвилину з однієї IP-адреси.
+
+### Обмеження поточної конфігурації
+
+- `docker-compose.yml` — лише dev-режим, production-конфігу немає.
+- Порти, `env_file` і `FRONTEND_URL` у `docker-compose.yml` зафіксовані, тому другу копію стека (напр. тестове середовище) на тій самій машині без правок compose не запустити.
