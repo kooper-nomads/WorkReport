@@ -82,6 +82,8 @@ export class TasksService {
       author: { id: String(task.user_from.id), name: task.user_from.name },
       assignee: { id: String(task.user_to.id), name: task.user_to.name },
       tags: tags.filter(tag => tag.label !== statusTag), // Exclude the status tag from the tags list
+      createdAt: task.date_added,
+      completedAt: task.date_closed ?? null,
     };
   }
 }

@@ -69,6 +69,16 @@
   border-top: 1px solid var(--border);
 }
 
+.task-card__dates {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--text);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
 .task-card__users {
   display: flex;
   flex-wrap: wrap;

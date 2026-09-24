@@ -12,11 +12,10 @@ function summarize(users: TaskUser[], selected: string[]): string {
   if (selected.length === 0) {
     return 'Оберіть користувачів'
   }
-  if (selected.length === 1) {
-    return users.find((user) => user.id === selected[0])?.name ?? selected[0]
-  }
 
-  return `Обрано: ${selected.length}`
+  return selected
+    .map((id) => users.find((user) => user.id === id)?.name ?? id)
+    .join(', ')
 }
 
 export function UserFilter({ users, value, onChange }: UserFilterProps) {

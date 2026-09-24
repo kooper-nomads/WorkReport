@@ -39,4 +39,6 @@ export interface Task {
   author?: TaskUser
   project?: TaskProject
   assignedAt?: string
+  createdAt: string
+  completedAt?: string | null
 }

@@ -31,6 +31,8 @@ function toTask(task: ApiAssignedTask): Task {
     tags: task.tags,
     events: [],
     project: task.project,
+    createdAt: task.createdAt,
+    completedAt: task.completedAt,
   }
 }
 

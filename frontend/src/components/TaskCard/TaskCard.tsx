@@ -44,6 +44,17 @@ function EventRow({ event }: { event: TaskEvent }) {
   )
 }
 
+const formatDate = (date?: string | null) =>
+  date
+    ? new Date(date).toLocaleString('uk-UA', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—'
+
 export function TaskCard({ task }: TaskCardProps) {
   const otherTags = task.tags.filter((tag) => tag.label !== task.statusTag)
 
@@ -91,6 +102,11 @@ export function TaskCard({ task }: TaskCardProps) {
       {task.events.length === 0 && task.assignedAt && (
         <span className="task-card__assigned-at">Закріплено: {task.assignedAt}</span>
       )}
+
+      <div className="task-card__dates">
+        <span>Створено: {formatDate(task.createdAt)}</span>
+        {task.completedAt && <span>Завершено: {formatDate(task.completedAt)}</span>}
+      </div>
     </article>
   )
 }

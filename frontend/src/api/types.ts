@@ -13,6 +13,8 @@ export interface ApiAssignedTask {
   author: { id: string; name: string }
   assignee: { id: string; name: string }
   tags: { id: string; label: string }[]
+  createdAt: string
+  completedAt?: string | null
 }
 
 export interface ApiTasksGroupedByStatus {

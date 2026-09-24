@@ -25,6 +25,8 @@ export interface AssignedTask {
   author: AssignedTaskUser;
   assignee: AssignedTaskUser;
   tags: AssignedTaskTag[];
+  createdAt: string;
+  completedAt?: string | null;
 }
 
 export interface TasksGroupedByStatus {
